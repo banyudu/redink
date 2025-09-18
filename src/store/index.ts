@@ -71,7 +71,7 @@ export const useAppStore = create<AppState>()(
         })),
     }),
     {
-      name: 'chat-arxiv-storage',
+      name: 'redink-storage',
     }
   )
 ); 

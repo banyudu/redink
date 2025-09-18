@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    chat_arxiv_lib::run()
+    redink_lib::run()
 }

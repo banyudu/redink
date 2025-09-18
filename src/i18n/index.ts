@@ -5,7 +5,7 @@ const resources = {
   en: {
     translation: {
       // Common
-      'app.name': 'Chat Arxiv',
+      'app.name': 'Redink',
       'app.theme.light': 'Light',
       'app.theme.dark': 'Dark',
       
@@ -39,7 +39,7 @@ const resources = {
   zh: {
     translation: {
       // Common
-      'app.name': 'Chat Arxiv',
+      'app.name': 'Redink',
       'app.theme.light': '浅色',
       'app.theme.dark': '深色',
       

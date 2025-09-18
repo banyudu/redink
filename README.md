@@ -1,4 +1,4 @@
-# Chat Arxiv
+# Redink
 
 A modern web application for managing and chatting with Arxiv papers using local LLM models.
 
