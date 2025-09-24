@@ -29,7 +29,7 @@ export const useAppStore = create<AppState>()(
       theme: 'light',
       language: 'en',
       currentPaper: null,
-      selectedModel: 'llama2',
+      selectedModel: 'llama3.2:latest',
       chatHistory: [],
       setTheme: (theme) => set({ theme }),
       setLanguage: (language) => set({ language }),
