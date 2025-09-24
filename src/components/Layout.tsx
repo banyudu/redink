@@ -7,9 +7,24 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <div className="flex flex-col min-h-screen bg-white text-zinc-900">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-gray-900 dark:text-gray-100 relative overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/30 to-purple-600/30 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-pink-400/30 to-orange-600/30 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-cyan-400/20 to-blue-600/20 rounded-full blur-3xl"></div>
+      </div>
+      
       <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-6">{children}</main>
+      
+      <main className="flex-1 container mx-auto px-6 py-8 relative z-10 animate-fade-in">
+        <div className="w-full max-w-7xl mx-auto">
+          {children}
+        </div>
+      </main>
+      
+      {/* Footer gradient */}
+      <div className="h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
     </div>
   );
 }; 
