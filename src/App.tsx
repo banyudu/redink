@@ -24,9 +24,10 @@ function App() {
     <Router>
       <Layout>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/papers" element={<Papers />} />
+          <Route path="/" element={<Chat />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/papers" element={<Papers />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </Layout>

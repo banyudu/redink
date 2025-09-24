@@ -68,6 +68,24 @@ const Chat: React.FC = () => {
         <Button disabled={loading || !pdfPath} onClick={loadPdf}>
           {loading ? "Loading..." : "Load PDF"}
         </Button>
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            try {
+              const { open } = await import("@tauri-apps/plugin-dialog");
+              const file = await open({ multiple: false, title: "Select a PDF", filters: [{ name: "PDF", extensions: ["pdf"] }] });
+              if (typeof file === "string" && file.endsWith(".pdf")) {
+                setPdfPath(file);
+              }
+            } catch (err: any) {
+              console.error(err);
+              // eslint-disable-next-line no-alert
+              alert(`Failed to open file dialog: ${err?.message ?? String(err)}`);
+            }
+          }}
+        >
+          Pick PDF
+        </Button>
         <Input
           className="max-w-[220px]"
           placeholder="ollama model (e.g., llama3.2:latest)"
