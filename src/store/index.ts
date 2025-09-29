@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { RecentFile } from '../lib/cache';
 
 interface AppState {
   theme: 'light' | 'dark';
   language: 'en' | 'zh';
   currentPaper: string | null;
+  lastSelectedPdfPath: string | null;
   selectedModel: string;
+  recentFiles: RecentFile[];
   chatHistory: Array<{
     id: string;
     paperId: string;
@@ -18,7 +21,12 @@ interface AppState {
   setTheme: (theme: 'light' | 'dark') => void;
   setLanguage: (language: 'en' | 'zh') => void;
   setCurrentPaper: (paperId: string | null) => void;
+  setLastSelectedPdfPath: (path: string | null) => void;
   setSelectedModel: (model: string) => void;
+  setRecentFiles: (files: RecentFile[]) => void;
+  addRecentFile: (file: RecentFile) => void;
+  removeRecentFile: (path: string) => void;
+  clearRecentFiles: () => void;
   addChatMessage: (paperId: string, role: 'user' | 'assistant', content: string) => void;
   clearChatHistory: (paperId: string) => void;
 }
@@ -29,12 +37,24 @@ export const useAppStore = create<AppState>()(
       theme: 'light',
       language: 'en',
       currentPaper: null,
+      lastSelectedPdfPath: null,
       selectedModel: 'llama3.2:latest',
+      recentFiles: [],
       chatHistory: [],
       setTheme: (theme) => set({ theme }),
       setLanguage: (language) => set({ language }),
       setCurrentPaper: (paperId) => set({ currentPaper: paperId }),
+      setLastSelectedPdfPath: (path) => set({ lastSelectedPdfPath: path }),
       setSelectedModel: (model) => set({ selectedModel: model }),
+      setRecentFiles: (files) => set({ recentFiles: files }),
+      addRecentFile: (file) => set((state) => {
+        const existing = state.recentFiles.filter(f => f.id !== file.id);
+        return { recentFiles: [file, ...existing] };
+      }),
+      removeRecentFile: (path) => set((state) => ({
+        recentFiles: state.recentFiles.filter(f => f.path !== path)
+      })),
+      clearRecentFiles: () => set({ recentFiles: [] }),
       addChatMessage: (paperId, role, content) =>
         set((state) => {
           const chatIndex = state.chatHistory.findIndex((chat) => chat.paperId === paperId);
