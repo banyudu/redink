@@ -52,7 +52,7 @@ const Papers: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in p-4">
       {/* Header */}
       <div className="text-center space-y-4">
         <div className="flex justify-center">

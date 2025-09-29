@@ -57,7 +57,7 @@ export const Settings: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in p-4">
       {/* Header */}
       <div className="text-center space-y-4">
         <div className="flex justify-center">

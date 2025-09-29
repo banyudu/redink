@@ -12,7 +12,7 @@ export interface RecentFile {
 
 const CACHE_DIR = 'redink';
 const RECENT_FILES_FILE = 'recent-files.json';
-const MAX_RECENT_FILES = 20;
+const MAX_RECENT_FILES = 5;
 
 class CacheManager {
   private recentFiles: RecentFile[] = [];
