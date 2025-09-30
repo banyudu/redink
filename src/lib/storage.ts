@@ -41,7 +41,7 @@ export class StorageManager {
       }
       
       // Final fallback to cache directory
-      const cachePath = `${home}${CACHE_RELATIVE_PATH}`;
+      const cachePath = `${home}/${CACHE_RELATIVE_PATH}`;
       console.log('Using cache directory for PDF storage:', cachePath);
       return cachePath;
       

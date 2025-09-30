@@ -310,7 +310,7 @@ export const Home: React.FC = () => {
           </div>
 
           {/* ArXiv Section when no recent files */}
-          <div className="mt-8">
+          <div className="mt-8 p-6">
             <div className="glass rounded-2xl p-6 border border-white/20 backdrop-blur-xl">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-pink-600 rounded-xl flex items-center justify-center">

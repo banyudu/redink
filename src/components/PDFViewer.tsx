@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { readFile } from '@tauri-apps/plugin-fs';
-import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist';
+import React, { useState, useCallback } from 'react';
+import { Document, Page, pdfjs } from 'react-pdf';
 import { 
   ZoomIn, 
   ZoomOut, 
@@ -13,9 +12,13 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 
+// Configure PDF.js worker
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
 // Use the same worker setup as in pdf.ts
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-GlobalWorkerOptions.workerSrc = workerUrl as unknown as string;
+pdfjs.GlobalWorkerOptions.workerSrc = workerUrl as unknown as string;
 
 interface PDFViewerProps {
   filePath: string;
@@ -23,124 +26,31 @@ interface PDFViewerProps {
 }
 
 export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1.0);
   const [rotation, setRotation] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [renderTask, setRenderTask] = useState<any>(null);
 
-  // Load PDF document
-  useEffect(() => {
-    let mounted = true;
-    
-    const loadPDF = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const data = await readFile(filePath);
-        const loadingTask = getDocument({ data });
-        const pdfDoc = await loadingTask.promise;
-        
-        if (mounted) {
-          setPdf(pdfDoc);
-          setTotalPages(pdfDoc.numPages);
-          setCurrentPage(1);
-        }
-      } catch (err: any) {
-        console.error('Error loading PDF:', err);
-        if (mounted) {
-          setError(`Failed to load PDF: ${err?.message ?? 'Unknown error'}`);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
+  // Document loading handlers
+  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
+    setTotalPages(numPages);
+    setCurrentPage(1);
+    setLoading(false);
+    setError(null);
+  }, []);
 
-    if (filePath) {
-      loadPDF();
-    }
+  const onDocumentLoadError = useCallback((error: any) => {
+    console.error('Error loading PDF:', error);
+    setError(`Failed to load PDF: ${error?.message ?? 'Unknown error'}`);
+    setLoading(false);
+  }, []);
 
-    return () => {
-      mounted = false;
-      if (renderTask) {
-        renderTask.cancel();
-      }
-    };
-  }, [filePath, renderTask]);
-
-  // Render current page
-  const renderPage = useCallback(async () => {
-    if (!pdf || !canvasRef.current) {
-      console.log('Cannot render: pdf or canvas not available', { pdf: !!pdf, canvas: !!canvasRef.current });
-      return;
-    }
-
-    // Cancel any ongoing render task
-    if (renderTask) {
-      renderTask.cancel();
-      setRenderTask(null);
-    }
-
-    try {
-      const page = await pdf.getPage(currentPage);
-      const canvas = canvasRef.current;
-      
-      // Double-check canvas is still available
-      if (!canvas) {
-        console.log('Canvas became null during render');
-        return;
-      }
-      
-      const context = canvas.getContext('2d');
-      if (!context) {
-        console.error('Failed to get canvas context');
-        setError('Failed to get canvas rendering context');
-        return;
-      }
-
-      const viewport = page.getViewport({ scale, rotation });
-      
-      // Set canvas dimensions
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-      
-      // Render page
-      const newRenderTask = page.render({
-        canvasContext: context,
-        viewport
-      });
-      
-      setRenderTask(newRenderTask);
-      await newRenderTask.promise;
-      
-      if (newRenderTask === renderTask) {
-        setRenderTask(null);
-      }
-    } catch (err: any) {
-      if (err?.name !== 'RenderingCancelledException') {
-        console.error('Error rendering page:', err);
-        setError(`Failed to render page: ${err?.message ?? 'Unknown error'}`);
-      }
-    }
-  }, [pdf, currentPage, scale, rotation, renderTask]);
-
-  // Re-render when dependencies change with a small delay to ensure canvas is ready
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      renderPage();
-    }, 100); // Small delay to ensure canvas is mounted
-
-    return () => clearTimeout(timer);
-  }, [renderPage]);
+  const onDocumentLoadStart = useCallback(() => {
+    setLoading(true);
+    setError(null);
+  }, []);
 
   // Navigation handlers
   const goToPage = useCallback((pageNum: number) => {
@@ -175,16 +85,15 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
     setRotation(prev => (prev + 90) % 360);
   }, []);
 
-  // Fit to container width
+  // Fit to container width - simplified for react-pdf
   const fitToWidth = useCallback(() => {
-    if (!pdf || !containerRef.current) return;
-    
-    const containerWidth = containerRef.current.clientWidth - 32; // Account for padding
-    // Rough estimation - we'd need to get actual page dimensions for precision
-    const estimatedPageWidth = 612; // Standard PDF page width in points
-    const newScale = containerWidth / estimatedPageWidth;
+    // With react-pdf, we can use a more standard approach
+    // Standard PDF page width is roughly 612 points, container has padding
+    const estimatedContainerWidth = 800; // Rough estimation
+    const estimatedPageWidth = 612;
+    const newScale = estimatedContainerWidth / estimatedPageWidth;
     setScale(Math.max(0.5, Math.min(newScale, 3.0)));
-  }, [pdf]);
+  }, []);
 
   if (loading) {
     return (
@@ -212,7 +121,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
     );
   }
 
-  if (!pdf) {
+  if (!filePath) {
     return (
       <div className={`flex flex-col items-center justify-center h-full ${className}`}>
         <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center">
@@ -323,17 +232,44 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
       </div>
 
       {/* PDF Content */}
-      <div 
-        ref={containerRef}
-        className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-gray-900/50 custom-scrollbar"
-      >
+      <div className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-gray-900/50 custom-scrollbar">
         <div className="flex justify-center">
           <div className="bg-white shadow-lg">
-            <canvas
-              ref={canvasRef}
-              className="max-w-full h-auto"
-              style={{ display: 'block' }}
-            />
+            <Document
+              file={filePath}
+              onLoadStart={onDocumentLoadStart}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading={
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin mr-3" />
+                  <span className="text-gray-600">Loading PDF...</span>
+                </div>
+              }
+              error={
+                <div className="flex items-center justify-center p-8 text-red-600">
+                  <FileText className="w-8 h-8 mr-3" />
+                  <span>Failed to load PDF</span>
+                </div>
+              }
+            >
+              <Page
+                pageNumber={currentPage}
+                scale={scale}
+                rotate={rotation}
+                loading={
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="w-6 h-6 text-blue-500 animate-spin mr-2" />
+                    <span className="text-sm text-gray-600">Rendering page...</span>
+                  </div>
+                }
+                error={
+                  <div className="flex items-center justify-center p-8 text-red-600">
+                    <span className="text-sm">Failed to render page</span>
+                  </div>
+                }
+              />
+            </Document>
           </div>
         </div>
       </div>

@@ -21,7 +21,7 @@ class CacheManager {
     try {
       // Ensure cache directory exists
       if (!(await exists(CACHE_DIR, { baseDir: BaseDirectory.AppData }))) {
-        await mkdir(CACHE_DIR, { baseDir: BaseDirectory.AppData });
+        await mkdir(CACHE_DIR, { baseDir: BaseDirectory.AppData, recursive: true });
       }
       
       // Load existing recent files

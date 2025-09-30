@@ -180,7 +180,7 @@ const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] animate-fade-in p-4">
+    <div className="h-[calc(100vh-172px)] animate-fade-in p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
