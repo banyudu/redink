@@ -2,6 +2,7 @@ import { readFile } from '@tauri-apps/plugin-fs';
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist';
 // Bundle the worker locally via Vite ?url to avoid remote CDN/CORS issues
 // Vite will transform this into an asset URL served by the dev server or included in the build
+// For pdfjs-dist v5.x, the worker path is slightly different
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - Vite will provide the string URL at build time
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';

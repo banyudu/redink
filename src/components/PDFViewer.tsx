@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { 
   ZoomIn, 
@@ -11,6 +11,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { readFile } from '@tauri-apps/plugin-fs';
 
 // Configure PDF.js worker
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -18,6 +19,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 // Use the same worker setup as in pdf.ts
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { whisper } from '@/lib/utils';
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl as unknown as string;
 
 interface PDFViewerProps {
@@ -30,11 +32,89 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1.0);
   const [rotation, setRotation] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fileData, setFileData] = useState<Blob | null>(null);
+
+  // Load file data when filePath changes
+  useEffect(() => {
+    if (!filePath) {
+      setFileData(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadFile = async () => {
+      try {
+        whisper(`[PDFViewer] Reading file from path: ${filePath}`);
+        console.log('[PDFViewer] Starting file read:', filePath);
+        setLoading(true);
+        setError(null);
+        
+        const data = await readFile(filePath);
+        console.log('[PDFViewer] File read complete:', {
+          byteLength: data.byteLength,
+          constructor: data.constructor.name,
+          isUint8Array: data instanceof Uint8Array,
+          hasBuffer: !!data.buffer,
+          bufferByteLength: data.buffer?.byteLength
+        });
+        
+        if (!cancelled) {
+          whisper(`[PDFViewer] File read successfully, size: ${data.byteLength} bytes`);
+          
+          // Convert to Blob to prevent ArrayBuffer detachment issues
+          // Blobs are immutable and safe to pass between threads and store in React state
+          console.log('[PDFViewer] Creating Blob from data...');
+          
+          // Create a standard ArrayBuffer and copy the data
+          const buffer = new ArrayBuffer(data.byteLength);
+          const view = new Uint8Array(buffer);
+          view.set(data);
+          
+          // Create Blob from the standard ArrayBuffer
+          const blob = new Blob([buffer], { type: 'application/pdf' });
+          
+          console.log('[PDFViewer] Blob created:', {
+            size: blob.size,
+            type: blob.type,
+            constructor: blob.constructor.name
+          });
+          
+          setFileData(blob);
+          console.log('[PDFViewer] File data (Blob) set in state');
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('[PDFViewer] Error reading PDF file:', err);
+          setError(`Failed to read file: ${err?.message ?? 'Unknown error'}`);
+          setLoading(false);
+        }
+      }
+    };
+
+    loadFile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath]);
+
+  // Debug: Log when fileData changes
+  useEffect(() => {
+    console.log('[PDFViewer] fileData changed:', fileData ? {
+      size: fileData.size,
+      type: fileData.type,
+      isBlob: fileData instanceof Blob,
+      constructor: fileData.constructor.name
+    } : 'null');
+  }, [fileData]);
 
   // Document loading handlers
   const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
+    console.log('[PDFViewer] Document loaded successfully, pages:', numPages);
+    whisper(`[PDFViewer] Document loaded successfully with ${numPages} pages`);
     setTotalPages(numPages);
     setCurrentPage(1);
     setLoading(false);
@@ -42,12 +122,19 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   }, []);
 
   const onDocumentLoadError = useCallback((error: any) => {
-    console.error('Error loading PDF:', error);
+    console.error('[PDFViewer] Error loading PDF document:', error);
+    console.error('[PDFViewer] Error details:', {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack
+    });
     setError(`Failed to load PDF: ${error?.message ?? 'Unknown error'}`);
     setLoading(false);
   }, []);
 
   const onDocumentLoadStart = useCallback(() => {
+    console.log('[PDFViewer] Document loading started');
+    whisper(`[PDFViewer] Document loading started`);
     setLoading(true);
     setError(null);
   }, []);
@@ -95,32 +182,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
     setScale(Math.max(0.5, Math.min(newScale, 3.0)));
   }, []);
 
-  if (loading) {
-    return (
-      <div className={`flex flex-col items-center justify-center h-full ${className}`}>
-        <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Loading PDF</h3>
-          <p className="text-gray-600 dark:text-gray-300">Processing your document...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={`flex flex-col items-center justify-center h-full ${className}`}>
-        <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-8 h-8 text-white" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading PDF</h3>
-          <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Handle case when no file path is provided
   if (!filePath) {
     return (
       <div className={`flex flex-col items-center justify-center h-full ${className}`}>
@@ -136,7 +198,31 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   }
 
   return (
-    <div className={`flex flex-col h-full glass rounded-2xl border border-white/20 backdrop-blur-xl ${className}`}>
+    <div className={`flex flex-col h-full glass rounded-2xl border border-white/20 backdrop-blur-xl relative ${className}`}>
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl">
+          <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center">
+            <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Loading PDF</h3>
+            <p className="text-gray-600 dark:text-gray-300">Processing your document...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error Overlay */}
+      {error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl">
+          <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading PDF</h3>
+            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center justify-between p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl">
         <div className="flex items-center gap-2">
@@ -235,41 +321,50 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
       <div className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-gray-900/50 custom-scrollbar">
         <div className="flex justify-center">
           <div className="bg-white shadow-lg">
-            <Document
-              file={filePath}
-              onLoadStart={onDocumentLoadStart}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={onDocumentLoadError}
-              loading={
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin mr-3" />
-                  <span className="text-gray-600">Loading PDF...</span>
-                </div>
-              }
-              error={
-                <div className="flex items-center justify-center p-8 text-red-600">
-                  <FileText className="w-8 h-8 mr-3" />
-                  <span>Failed to load PDF</span>
-                </div>
-              }
-            >
-              <Page
-                pageNumber={currentPage}
-                scale={scale}
-                rotate={rotation}
+            {fileData && (() => {
+              console.log('[PDFViewer] Rendering Document component with fileData:', {
+                size: fileData.size,
+                type: fileData.type,
+                isBlob: fileData instanceof Blob
+              });
+              return (
+              <Document
+                file={fileData}
+                onLoadStart={onDocumentLoadStart}
+                onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={onDocumentLoadError}
                 loading={
                   <div className="flex items-center justify-center p-8">
-                    <Loader2 className="w-6 h-6 text-blue-500 animate-spin mr-2" />
-                    <span className="text-sm text-gray-600">Rendering page...</span>
+                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin mr-3" />
+                    <span className="text-gray-600">Loading PDF...</span>
                   </div>
                 }
                 error={
                   <div className="flex items-center justify-center p-8 text-red-600">
-                    <span className="text-sm">Failed to render page</span>
+                    <FileText className="w-8 h-8 mr-3" />
+                    <span>Failed to load PDF</span>
                   </div>
                 }
-              />
-            </Document>
+              >
+                <Page
+                  pageNumber={currentPage}
+                  scale={scale}
+                  rotate={rotation}
+                  loading={
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="w-6 h-6 text-blue-500 animate-spin mr-2" />
+                      <span className="text-sm text-gray-600">Rendering page...</span>
+                    </div>
+                  }
+                  error={
+                    <div className="flex items-center justify-center p-8 text-red-600">
+                      <span className="text-sm">Failed to render page</span>
+                    </div>
+                  }
+                />
+              </Document>
+              );
+            })()}
           </div>
         </div>
       </div>
