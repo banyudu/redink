@@ -1,14 +1,25 @@
-import { BaseDirectory, exists, mkdir, writeFile } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, exists, mkdir, writeFile, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { homeDir } from '@tauri-apps/api/path';
 
 // Common paths for PDF storage
 const IBOOKS_RELATIVE_PATH = 'Library/Mobile Documents/iCloud~com~apple~iBooks/Documents';
 const APP_LIBRARY_RELATIVE_PATH = 'Library/Application Support/redink/papers';
 const CACHE_RELATIVE_PATH = '.cache/redink/papers';
+const PREFERENCES_FILE = 'redink/preferences.json';
+
+// User preferences interface
+export interface UserPreferences {
+  arxivCategories: string[];
+  lastUpdated: number;
+}
+
+// Default categories
+const DEFAULT_ARXIV_CATEGORIES = ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV'];
 
 export class StorageManager {
   private static instance: StorageManager;
   private storagePath: string | null = null;
+  private preferences: UserPreferences | null = null;
 
   public static getInstance(): StorageManager {
     if (!StorageManager.instance) {
@@ -20,6 +31,7 @@ export class StorageManager {
   async initialize(): Promise<void> {
     this.storagePath = await this.findBestStorageLocation();
     await this.ensureDirectoryExists(this.storagePath);
+    await this.loadPreferences();
   }
 
   private async findBestStorageLocation(): Promise<string> {
@@ -137,6 +149,76 @@ export class StorageManager {
       console.error('Error listing downloaded papers:', error);
       return [];
     }
+  }
+
+  // Preferences management
+  private async loadPreferences(): Promise<void> {
+    try {
+      // Ensure the directory exists
+      const dirPath = PREFERENCES_FILE.split('/').slice(0, -1).join('/');
+      if (dirPath && !(await exists(dirPath, { baseDir: BaseDirectory.AppData }))) {
+        await mkdir(dirPath, { baseDir: BaseDirectory.AppData, recursive: true });
+      }
+      
+      if (await exists(PREFERENCES_FILE, { baseDir: BaseDirectory.AppData })) {
+        const content = await readTextFile(PREFERENCES_FILE, { baseDir: BaseDirectory.AppData });
+        this.preferences = JSON.parse(content);
+        console.log('[Storage] Loaded user preferences:', this.preferences);
+      } else {
+        // Initialize with defaults
+        console.log('[Storage] No preferences file found, creating with defaults');
+        this.preferences = {
+          arxivCategories: DEFAULT_ARXIV_CATEGORIES,
+          lastUpdated: Date.now()
+        };
+        await this.savePreferences();
+        console.log('[Storage] Created default preferences:', this.preferences);
+      }
+    } catch (error) {
+      console.error('[Storage] Failed to load preferences:', error);
+      this.preferences = {
+        arxivCategories: DEFAULT_ARXIV_CATEGORIES,
+        lastUpdated: Date.now()
+      };
+    }
+  }
+
+  private async savePreferences(): Promise<void> {
+    if (!this.preferences) return;
+    
+    try {
+      // Ensure the directory exists
+      const dirPath = PREFERENCES_FILE.split('/').slice(0, -1).join('/');
+      if (dirPath && !(await exists(dirPath, { baseDir: BaseDirectory.AppData }))) {
+        await mkdir(dirPath, { baseDir: BaseDirectory.AppData, recursive: true });
+      }
+      
+      const content = JSON.stringify(this.preferences, null, 2);
+      await writeTextFile(PREFERENCES_FILE, content, { baseDir: BaseDirectory.AppData });
+      console.log('[Storage] Saved user preferences');
+    } catch (error) {
+      console.error('[Storage] Failed to save preferences:', error);
+    }
+  }
+
+  getPreferences(): UserPreferences {
+    return this.preferences || {
+      arxivCategories: DEFAULT_ARXIV_CATEGORIES,
+      lastUpdated: Date.now()
+    };
+  }
+
+  async updateArxivCategories(categories: string[]): Promise<void> {
+    if (!this.preferences) {
+      this.preferences = {
+        arxivCategories: categories,
+        lastUpdated: Date.now()
+      };
+    } else {
+      this.preferences.arxivCategories = categories;
+      this.preferences.lastUpdated = Date.now();
+    }
+    await this.savePreferences();
   }
 }
 

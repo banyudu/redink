@@ -1,9 +1,11 @@
 /**
- * ArXiv API Integration with Caching
+ * ArXiv API Integration with Persistent Caching
  * 
  * Uses ArXiv API v1 (https://export.arxiv.org/api/query)
  * API Documentation: https://info.arxiv.org/help/api/index.html
  */
+
+import { BaseDirectory, exists, readTextFile, writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
 
 export interface ArxivPaper {
   id: string;
@@ -22,9 +24,36 @@ interface ArxivApiResponse {
   totalResults: number;
 }
 
+interface CachedArxivData {
+  data: ArxivPaper[];
+  timestamp: number;
+}
+
 const ARXIV_API_BASE = 'https://export.arxiv.org/api/query';
 const DEFAULT_MAX_RESULTS = 20;
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+const CACHE_DURATION = 1000 * 60 * 60 * 24; // 24 hours for persistent cache
+const CACHE_DIR = 'redink/arxiv-cache';
+
+// Popular ArXiv categories
+export const ARXIV_CATEGORIES = {
+  'cs.AI': 'Artificial Intelligence',
+  'cs.LG': 'Machine Learning',
+  'cs.CL': 'Computation and Language (NLP)',
+  'cs.CV': 'Computer Vision',
+  'cs.CR': 'Cryptography and Security',
+  'cs.DB': 'Databases',
+  'cs.DC': 'Distributed Computing',
+  'cs.DS': 'Data Structures and Algorithms',
+  'cs.HC': 'Human-Computer Interaction',
+  'cs.IR': 'Information Retrieval',
+  'cs.NE': 'Neural and Evolutionary Computing',
+  'cs.RO': 'Robotics',
+  'cs.SE': 'Software Engineering',
+  'stat.ML': 'Machine Learning (Statistics)',
+  'math.CO': 'Combinatorics',
+  'physics.data-an': 'Data Analysis',
+  'quant-ph': 'Quantum Physics',
+};
 
 /**
  * Parse ArXiv Atom feed XML response
@@ -201,51 +230,106 @@ export async function getPaperById(arxivId: string): Promise<ArxivPaper | null> 
 }
 
 /**
- * Cache manager for ArXiv search results
+ * Persistent cache manager for ArXiv search results
  */
 class ArxivCacheManager {
-  private cache = new Map<string, { data: ArxivPaper[]; timestamp: number }>();
+  private memoryCache = new Map<string, { data: ArxivPaper[]; timestamp: number }>();
+  private initialized = false;
+  
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+    
+    try {
+      // Ensure cache directory exists
+      if (!(await exists(CACHE_DIR, { baseDir: BaseDirectory.AppData }))) {
+        await mkdir(CACHE_DIR, { baseDir: BaseDirectory.AppData, recursive: true });
+      }
+      this.initialized = true;
+      console.log('[ArXiv Cache] Initialized persistent cache');
+    } catch (error) {
+      console.error('[ArXiv Cache] Failed to initialize:', error);
+    }
+  }
   
   getCacheKey(query: string, options: any = {}): string {
-    return `${query}_${JSON.stringify(options)}`;
+    // Create a safe filename from the query and options
+    const keyStr = `${query}_${JSON.stringify(options)}`;
+    return keyStr.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 100);
   }
   
-  get(query: string, options: any = {}): ArxivPaper[] | null {
+  async get(query: string, options: any = {}): Promise<ArxivPaper[] | null> {
     const key = this.getCacheKey(query, options);
-    const cached = this.cache.get(key);
     
-    if (!cached) return null;
-    
-    // Check if cache is expired
-    if (Date.now() - cached.timestamp > CACHE_DURATION) {
-      this.cache.delete(key);
-      return null;
+    // Check memory cache first
+    const memCached = this.memoryCache.get(key);
+    if (memCached) {
+      if (Date.now() - memCached.timestamp <= CACHE_DURATION) {
+        console.log('[ArXiv Cache] Memory hit:', key);
+        return memCached.data;
+      } else {
+        this.memoryCache.delete(key);
+      }
     }
     
-    console.log('[ArXiv Cache] Hit:', key);
-    return cached.data;
+    // Check persistent cache
+    try {
+      await this.initialize();
+      const filePath = `${CACHE_DIR}/${key}.json`;
+      
+      if (await exists(filePath, { baseDir: BaseDirectory.AppData })) {
+        const content = await readTextFile(filePath, { baseDir: BaseDirectory.AppData });
+        const cached: CachedArxivData = JSON.parse(content);
+        
+        // Check if cache is expired
+        if (Date.now() - cached.timestamp <= CACHE_DURATION) {
+          console.log('[ArXiv Cache] Persistent hit:', key);
+          // Store in memory cache for faster access
+          this.memoryCache.set(key, cached);
+          return cached.data;
+        } else {
+          console.log('[ArXiv Cache] Expired, removing:', key);
+        }
+      }
+    } catch (error) {
+      console.error('[ArXiv Cache] Failed to read cache:', error);
+    }
+    
+    return null;
   }
   
-  set(query: string, data: ArxivPaper[], options: any = {}): void {
+  async set(query: string, data: ArxivPaper[], options: any = {}): Promise<void> {
     const key = this.getCacheKey(query, options);
-    this.cache.set(key, { data, timestamp: Date.now() });
-    console.log('[ArXiv Cache] Stored:', key);
+    const cached: CachedArxivData = { data, timestamp: Date.now() };
     
-    // Clean old entries if cache gets too large
-    if (this.cache.size > 50) {
-      const sortedEntries = Array.from(this.cache.entries())
+    // Store in memory cache
+    this.memoryCache.set(key, cached);
+    
+    // Store in persistent cache
+    try {
+      await this.initialize();
+      const filePath = `${CACHE_DIR}/${key}.json`;
+      const content = JSON.stringify(cached);
+      await writeTextFile(filePath, content, { baseDir: BaseDirectory.AppData });
+      console.log('[ArXiv Cache] Persisted:', key);
+    } catch (error) {
+      console.error('[ArXiv Cache] Failed to persist cache:', error);
+    }
+    
+    // Clean old entries from memory if it gets too large
+    if (this.memoryCache.size > 20) {
+      const sortedEntries = Array.from(this.memoryCache.entries())
         .sort((a, b) => a[1].timestamp - b[1].timestamp);
       
-      // Remove oldest 10 entries
-      for (let i = 0; i < 10; i++) {
-        this.cache.delete(sortedEntries[i][0]);
+      // Remove oldest 5 entries
+      for (let i = 0; i < 5; i++) {
+        this.memoryCache.delete(sortedEntries[i][0]);
       }
     }
   }
   
   clear(): void {
-    this.cache.clear();
-    console.log('[ArXiv Cache] Cleared');
+    this.memoryCache.clear();
+    console.log('[ArXiv Cache] Memory cache cleared');
   }
 }
 
@@ -259,7 +343,7 @@ export async function searchArxivPapersCached(
   options: Parameters<typeof searchArxivPapers>[1] = {}
 ): Promise<ArxivPaper[]> {
   // Check cache first
-  const cached = arxivCache.get(query, options);
+  const cached = await arxivCache.get(query, options);
   if (cached) {
     return cached;
   }
@@ -268,7 +352,7 @@ export async function searchArxivPapersCached(
   const papers = await searchArxivPapers(query, options);
   
   // Store in cache
-  arxivCache.set(query, papers, options);
+  await arxivCache.set(query, papers, options);
   
   return papers;
 }
@@ -278,13 +362,58 @@ export async function searchArxivPapersCached(
  */
 export async function getFeaturedPapersCached(maxResults = 12): Promise<ArxivPaper[]> {
   const cacheKey = `featured_${maxResults}`;
-  const cached = arxivCache.get(cacheKey);
+  const cached = await arxivCache.get(cacheKey);
   if (cached) {
     return cached;
   }
   
   const papers = await getFeaturedPapers(maxResults);
-  arxivCache.set(cacheKey, papers);
+  await arxivCache.set(cacheKey, papers);
+  
+  return papers;
+}
+
+/**
+ * Get latest papers from selected categories
+ */
+export async function getPapersByCategories(
+  categories: string[],
+  maxResults = 20
+): Promise<ArxivPaper[]> {
+  if (categories.length === 0) {
+    return getFeaturedPapers(maxResults);
+  }
+  
+  // Build query for multiple categories
+  const query = categories.map(cat => `cat:${cat}`).join('+OR+');
+  
+  return searchArxivPapers(query, {
+    maxResults,
+    sortBy: 'submittedDate',
+    sortOrder: 'descending'
+  });
+}
+
+/**
+ * Cached version of getPapersByCategories
+ */
+export async function getPapersByCategoriesCached(
+  categories: string[],
+  maxResults = 20
+): Promise<ArxivPaper[]> {
+  // Sort categories to ensure consistent cache key
+  const sortedCategories = [...categories].sort();
+  const cacheKey = `categories_${sortedCategories.join('_')}_${maxResults}`;
+  
+  const cached = await arxivCache.get(cacheKey);
+  if (cached) {
+    console.log(`[ArXiv] Using cached data for categories: ${sortedCategories.join(', ')}`);
+    return cached;
+  }
+  
+  console.log(`[ArXiv] Fetching fresh data for categories: ${sortedCategories.join(', ')}`);
+  const papers = await getPapersByCategories(sortedCategories, maxResults);
+  await arxivCache.set(cacheKey, papers);
   
   return papers;
 }
