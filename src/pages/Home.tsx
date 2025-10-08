@@ -6,6 +6,11 @@ import { cacheManager } from "../lib/cache";
 import { storageManager } from "../lib/storage";
 import type { RecentFile } from "../lib/cache";
 import { 
+  getFeaturedPapersCached,
+  searchArxivPapersCached,
+  type ArxivPaper
+} from "../lib/arxiv";
+import { 
   FileText, 
   Upload, 
   Search,
@@ -14,41 +19,11 @@ import {
   Download,
   Loader2,
   FolderOpen,
-  Sparkles
+  Sparkles,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-
-// Mock ArXiv data
-const mockArxivPapers = [
-  {
-    id: "2301.07041",
-    title: "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
-    authors: "Jason Wei, Xuezhi Wang, Dale Schuurmans",
-    category: "Machine Learning",
-    publishedDate: "2023-01-17",
-    abstract: "We explore how generating a chain of thought—a series of intermediate reasoning steps—significantly improves the ability of large language models to perform complex reasoning...",
-    downloadUrl: "https://arxiv.org/pdf/2301.07041.pdf"
-  },
-  {
-    id: "2305.10403", 
-    title: "Tree of Thoughts: Deliberate Problem Solving with Large Language Models",
-    authors: "Shunyu Yao, Dian Yu, Jeffrey Zhao",
-    category: "Artificial Intelligence",
-    publishedDate: "2023-05-17",
-    abstract: "Language models are increasingly being deployed for general problem solving across a wide range of tasks, but are still confined to token-level, left-to-right decision-making processes...",
-    downloadUrl: "https://arxiv.org/pdf/2305.10403.pdf"
-  },
-  {
-    id: "2303.08774",
-    title: "GPT-4 Technical Report", 
-    authors: "OpenAI",
-    category: "Machine Learning",
-    publishedDate: "2023-03-15",
-    abstract: "We report the development of GPT-4, a large-scale, multimodal model which can accept image and text inputs and produce text outputs...",
-    downloadUrl: "https://arxiv.org/pdf/2303.08774.pdf"
-  }
-];
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -66,8 +41,12 @@ export const Home: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
   const [arxivQuery, setArxivQuery] = useState("");
-  const [filteredPapers, setFilteredPapers] = useState(mockArxivPapers);
+  const [arxivPapers, setArxivPapers] = useState<ArxivPaper[]>([]);
+  const [filteredPapers, setFilteredPapers] = useState<ArxivPaper[]>([]);
   const [downloadingPaper, setDownloadingPaper] = useState<string | null>(null);
+  const [loadingPapers, setLoadingPapers] = useState(false);
+  const [papersError, setPapersError] = useState<string | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load recent files and initialize storage on mount
   React.useEffect(() => {
@@ -84,19 +63,71 @@ export const Home: React.FC = () => {
     initialize();
   }, [setRecentFiles]);
 
-  // Filter ArXiv papers based on search
+  // Load featured ArXiv papers on mount
   React.useEffect(() => {
-    if (!arxivQuery.trim()) {
-      setFilteredPapers(mockArxivPapers);
-    } else {
-      const filtered = mockArxivPapers.filter(paper => 
-        paper.title.toLowerCase().includes(arxivQuery.toLowerCase()) ||
-        paper.authors.toLowerCase().includes(arxivQuery.toLowerCase()) ||
-        paper.category.toLowerCase().includes(arxivQuery.toLowerCase())
-      );
-      setFilteredPapers(filtered);
+    const loadFeaturedPapers = async () => {
+      setLoadingPapers(true);
+      setPapersError(null);
+      
+      try {
+        const papers = await getFeaturedPapersCached(12);
+        setArxivPapers(papers);
+        setFilteredPapers(papers);
+        console.log('[Home] Loaded featured papers:', papers.length);
+      } catch (error: any) {
+        console.error('[Home] Failed to load featured papers:', error);
+        setPapersError('Failed to load ArXiv papers. Please try again later.');
+        // Set empty array so UI doesn't break
+        setArxivPapers([]);
+        setFilteredPapers([]);
+      } finally {
+        setLoadingPapers(false);
+      }
+    };
+    
+    loadFeaturedPapers();
+  }, []);
+
+  // Search ArXiv papers with debouncing
+  React.useEffect(() => {
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
-  }, [arxivQuery]);
+    
+    // If query is empty, show featured papers
+    if (!arxivQuery.trim()) {
+      setFilteredPapers(arxivPapers);
+      return;
+    }
+    
+    // Debounce search - wait 500ms after user stops typing
+    searchTimeoutRef.current = setTimeout(async () => {
+      setLoadingPapers(true);
+      setPapersError(null);
+      
+      try {
+        // Build search query for title, author, or abstract
+        const searchQuery = `all:${arxivQuery}`;
+        const papers = await searchArxivPapersCached(searchQuery, { maxResults: 20 });
+        setFilteredPapers(papers);
+        console.log('[Home] Search results:', papers.length);
+      } catch (error: any) {
+        console.error('[Home] Search failed:', error);
+        setPapersError('Search failed. Please try again.');
+        setFilteredPapers([]);
+      } finally {
+        setLoadingPapers(false);
+      }
+    }, 500);
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [arxivQuery, arxivPapers]);
 
   // Process PDF file and navigate to chat
   const processPdfFile = useCallback(async (filePath: string) => {
@@ -135,30 +166,33 @@ export const Home: React.FC = () => {
     }
   }, [navigate, setCurrentPaper, setLastSelectedPdfPath, addRecentFile]);
 
-  // Handle file selection
-  const handleFileSelect = useCallback(async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  // Handle file selection via Tauri dialog
+  const handleFileSelect = useCallback(async () => {
+    console.log('[DEBUG] handleFileSelect called - opening Tauri file dialog');
     
-    const file = files[0];
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      alert('Please select a PDF file');
-      return;
-    }
-    
-    // For Tauri, we need to get the file path
     try {
       const { open } = await import("@tauri-apps/plugin-dialog");
+      console.log('[DEBUG] Tauri dialog imported successfully');
+      
       const filePath = await open({ 
         multiple: false, 
         title: "Select a PDF", 
         filters: [{ name: "PDF", extensions: ["pdf"] }] 
       });
       
+      console.log('[DEBUG] Dialog result:', filePath);
+      
       if (typeof filePath === "string" && filePath.endsWith(".pdf")) {
+        console.log('[DEBUG] Valid PDF selected, processing:', filePath);
         await processPdfFile(filePath);
+      } else if (filePath) {
+        console.warn('[DEBUG] Invalid file selected:', filePath);
+        alert('Please select a PDF file');
+      } else {
+        console.log('[DEBUG] File selection cancelled by user');
       }
     } catch (err: any) {
-      console.error('File selection error:', err);
+      console.error('[DEBUG] File selection error:', err);
       alert(`Failed to select file: ${err?.message ?? String(err)}`);
     }
   }, [processPdfFile]);
@@ -179,9 +213,10 @@ export const Home: React.FC = () => {
     e.stopPropagation();
     setDragActive(false);
     
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files);
-    }
+    console.log('[DEBUG] File dropped');
+    // Note: In Tauri, drag & drop may not work the same as web
+    // For now, open file dialog as fallback
+    handleFileSelect();
   }, [handleFileSelect]);
 
   // Recent file selection
@@ -191,14 +226,14 @@ export const Home: React.FC = () => {
   }, [processPdfFile]);
 
   // ArXiv paper download handler
-  const handleArxivDownload = useCallback(async (paper: typeof mockArxivPapers[0]) => {
+  const handleArxivDownload = useCallback(async (paper: ArxivPaper) => {
     setDownloadingPaper(paper.id);
     
     try {
       const filePath = await storageManager.downloadArxivPaper(
         paper.id,
         paper.title,
-        paper.downloadUrl
+        paper.pdfUrl
       );
       
       // Process the downloaded PDF and navigate to chat
@@ -271,7 +306,10 @@ export const Home: React.FC = () => {
                 ref={fileInputRef}
                 type="file"
                 accept=".pdf"
-                onChange={(e) => handleFileSelect(e.target.files)}
+                onChange={() => {
+                  console.log('[DEBUG] File input onChange triggered');
+                  handleFileSelect();
+                }}
                 className="hidden"
               />
               
@@ -296,9 +334,13 @@ export const Home: React.FC = () => {
                       or click anywhere to browse and select a file
                     </p>
                     <Button
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('[DEBUG] Browse Files button clicked');
+                        handleFileSelect();
+                      }}
                       disabled={loading}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg min-w-[180px] transition-all duration-200"
                     >
                       <Upload className="w-5 h-5 mr-2" />
                       Browse Files
@@ -317,6 +359,9 @@ export const Home: React.FC = () => {
                   <BookOpen className="w-5 h-5 text-white" />
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Or browse ArXiv Papers</h2>
+                {loadingPapers && (
+                  <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+                )}
               </div>
 
               {/* Search */}
@@ -327,12 +372,38 @@ export const Home: React.FC = () => {
                   value={arxivQuery}
                   onChange={(e) => setArxivQuery(e.target.value)}
                   className="pl-10 glass border-white/20 bg-white/10 backdrop-blur-xl"
+                  disabled={loadingPapers}
                 />
               </div>
 
+              {/* Error Message */}
+              {papersError && (
+                <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <p className="text-sm text-red-800 dark:text-red-200">{papersError}</p>
+                </div>
+              )}
+
               {/* Papers Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredPapers.map((paper) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[200px]">
+                {loadingPapers && filteredPapers.length === 0 ? (
+                  <div className="col-span-full flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
+                      <p className="text-gray-600 dark:text-gray-300">Loading papers from ArXiv...</p>
+                    </div>
+                  </div>
+                ) : filteredPapers.length === 0 ? (
+                  <div className="col-span-full flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 dark:text-gray-300">
+                        {arxivQuery ? 'No papers found. Try a different search.' : 'No papers available.'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  filteredPapers.map((paper) => (
                   <div
                     key={paper.id}
                     className={`p-4 border border-white/20 rounded-xl hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all duration-200 group ${
@@ -378,7 +449,8 @@ export const Home: React.FC = () => {
                       </Button>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
 
               <div className="mt-6 pt-4 border-t border-white/20">
@@ -453,7 +525,10 @@ export const Home: React.FC = () => {
                       ref={fileInputRef}
                       type="file"
                       accept=".pdf"
-                      onChange={(e) => handleFileSelect(e.target.files)}
+                      onChange={() => {
+                        console.log('[DEBUG] File input onChange triggered (compact view)');
+                        handleFileSelect();
+                      }}
                       className="hidden"
                     />
                     
@@ -480,6 +555,9 @@ export const Home: React.FC = () => {
                   <BookOpen className="w-5 h-5 text-white" />
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">ArXiv Papers</h2>
+                {loadingPapers && (
+                  <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+                )}
               </div>
 
               {/* Search */}
@@ -490,12 +568,38 @@ export const Home: React.FC = () => {
                   value={arxivQuery}
                   onChange={(e) => setArxivQuery(e.target.value)}
                   className="pl-10 glass border-white/20 bg-white/10 backdrop-blur-xl"
+                  disabled={loadingPapers}
                 />
               </div>
 
+              {/* Error Message */}
+              {papersError && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <p className="text-xs text-red-800 dark:text-red-200">{papersError}</p>
+                </div>
+              )}
+
               {/* Papers List */}
               <div className="space-y-3 max-h-80 overflow-y-auto">
-                {filteredPapers.map((paper) => (
+                {loadingPapers && filteredPapers.length === 0 ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <Loader2 className="w-10 h-10 text-orange-500 animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Loading papers...</p>
+                    </div>
+                  </div>
+                ) : filteredPapers.length === 0 ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <Search className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        {arxivQuery ? 'No papers found. Try a different search.' : 'No papers available.'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  filteredPapers.map((paper) => (
                   <div
                     key={paper.id}
                     className={`p-4 border border-white/20 rounded-xl hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all duration-200 group ${
@@ -541,7 +645,8 @@ export const Home: React.FC = () => {
                       </Button>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
 
               <div className="mt-4 pt-4 border-t border-white/20">
