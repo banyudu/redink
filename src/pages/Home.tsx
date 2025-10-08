@@ -267,7 +267,7 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in p-4">
+    <div className="space-y-8 animate-fade-in px-6 py-4 max-w-[1800px] mx-auto">
       {/* Header */}
       <div className="text-center space-y-4 py-8">
         <div className="flex justify-center mb-4">

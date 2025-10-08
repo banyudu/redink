@@ -96,16 +96,21 @@ const Chat: React.FC = () => {
   // Auto-load last selected PDF on component mount
   React.useEffect(() => {
     const autoLoadLastPdf = async () => {
-      if (lastSelectedPdfPath && !currentPaper && !loading && !autoLoading) {
+      // Load PDF if we have a path and either no current paper or current paper but no index
+      const shouldLoad = (lastSelectedPdfPath || currentPaper) && !index && !loading && !autoLoading;
+      const pathToLoad = currentPaper || lastSelectedPdfPath;
+      
+      if (shouldLoad && pathToLoad) {
         setAutoLoading(true);
         try {
-          const fileExists = await checkFileExists(lastSelectedPdfPath);
+          const fileExists = await checkFileExists(pathToLoad);
           if (fileExists) {
-            console.log("Auto-loading last selected PDF:", lastSelectedPdfPath);
-            await loadPdf(lastSelectedPdfPath);
+            console.log("Auto-loading PDF for text extraction:", pathToLoad);
+            await loadPdf(pathToLoad);
           } else {
-            console.log("Last selected PDF no longer exists:", lastSelectedPdfPath);
+            console.log("PDF file no longer exists:", pathToLoad);
             // Clear the invalid path and redirect to home
+            setCurrentPaper(null);
             setLastSelectedPdfPath(null);
             navigate('/');
           }
@@ -119,7 +124,7 @@ const Chat: React.FC = () => {
     };
 
     autoLoadLastPdf();
-  }, [lastSelectedPdfPath, currentPaper, loading, autoLoading, checkFileExists, loadPdf, setLastSelectedPdfPath, navigate]);
+  }, [lastSelectedPdfPath, currentPaper, index, loading, autoLoading, checkFileExists, loadPdf, setCurrentPaper, setLastSelectedPdfPath, navigate]);
 
   const send = useCallback(async () => {
     if (!currentPaper || !index || !question.trim() || sending) return;
@@ -180,9 +185,9 @@ const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-172px)] animate-fade-in p-4">
+    <div className="h-[calc(100vh-140px)] animate-fade-in px-6 py-4 max-w-[1800px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -222,14 +227,14 @@ const Chat: React.FC = () => {
       </div>
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-12 gap-6 h-[calc(100%-80px)]">
+      <div className="grid grid-cols-12 gap-6 h-[calc(100%-72px)]">
         {/* Left Column - PDF Viewer */}
-        <div className="col-span-5">
+        <div className="col-span-6 h-full overflow-hidden">
           <PDFViewer filePath={currentPaper} className="h-full" />
         </div>
 
         {/* Right Column - Chat Interface */}
-        <div className="col-span-7 flex flex-col">
+        <div className="col-span-6 flex flex-col h-full">
           {/* Chat Messages Area */}
           <div className="flex-1 glass rounded-2xl border border-white/20 backdrop-blur-xl overflow-hidden mb-4">
             <div className="h-full flex flex-col">
