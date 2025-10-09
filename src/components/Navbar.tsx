@@ -53,26 +53,10 @@ export const Navbar: React.FC = () => {
 
           {/* Papers dropdown */}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="gap-2 hover:bg-white/20 hover:text-purple-600 font-medium transition-all duration-300 hover:shadow-lg hover:scale-105"
-              >
-                <FileText className="w-4 h-4" />
-                {t("nav.papers")}
-              </Button>
-            </DropdownMenuTrigger>
             <DropdownMenuContent 
               align="end" 
               className="glass border-white/20 shadow-xl backdrop-blur-xl min-w-[160px] mt-2"
             >
-              <DropdownMenuItem 
-                onClick={() => navigate("/papers")}
-                className="gap-2 hover:bg-white/20 transition-all duration-200"
-              >
-                <FileText className="w-4 h-4" />
-                {t("nav.papers")}
-              </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => navigate("/home")}
                 className="gap-2 hover:bg-white/20 transition-all duration-200"

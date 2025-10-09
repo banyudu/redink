@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from './store';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
-import { Papers } from './pages/Papers';
 import { Chat } from './pages/Chat';
 import { Settings } from './pages/Settings';
 import './i18n';
@@ -27,7 +26,6 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/home" element={<Home />} />
           <Route path="/chat" element={<Chat />} />
-          <Route path="/papers" element={<Papers />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </Layout>
