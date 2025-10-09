@@ -234,16 +234,15 @@ const Chat: React.FC = () => {
         </div>
 
         {/* Right Column - Chat Interface */}
-        <div className="col-span-6 flex flex-col h-full">
+        <div className="col-span-6 flex flex-col h-full min-h-0">
           {/* Chat Messages Area */}
-          <div className="flex-1 glass rounded-2xl border border-white/20 backdrop-blur-xl overflow-hidden mb-4">
-            <div className="h-full flex flex-col">
-              <div className="p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl">
-                <h3 className="font-semibold text-gray-900 dark:text-white">AI Conversation</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Ask questions about your research paper</p>
-              </div>
-              
-              <div className="flex-1 p-6 overflow-auto space-y-4 min-h-0">
+          <div className="flex-1 glass rounded-2xl border border-white/20 backdrop-blur-xl overflow-hidden mb-4 flex flex-col min-h-0">
+            <div className="p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl flex-shrink-0">
+              <h3 className="font-semibold text-gray-900 dark:text-white">AI Conversation</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Ask questions about your research paper</p>
+            </div>
+            
+            <div className="flex-1 p-6 overflow-auto space-y-4 min-h-0">
                 {messages.length === 0 && index && (
                   <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                     <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center">
@@ -320,11 +319,10 @@ const Chat: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>
           </div>
 
           {/* Message Input */}
-          <div className="glass rounded-2xl p-4 border border-white/20 backdrop-blur-xl">
+          <div className="glass rounded-2xl p-4 border border-white/20 backdrop-blur-xl flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="flex-1 relative">
                 <Input

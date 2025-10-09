@@ -4,8 +4,6 @@ import {
   ZoomIn, 
   ZoomOut, 
   RotateCw, 
-  ChevronLeft, 
-  ChevronRight,
   Maximize2,
   FileText,
   Loader2
@@ -28,7 +26,6 @@ interface PDFViewerProps {
 }
 
 export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }) => {
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1.0);
   const [rotation, setRotation] = useState(0);
@@ -116,7 +113,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
     console.log('[PDFViewer] Document loaded successfully, pages:', numPages);
     whisper(`[PDFViewer] Document loaded successfully with ${numPages} pages`);
     setTotalPages(numPages);
-    setCurrentPage(1);
     setLoading(false);
     setError(null);
   }, []);
@@ -138,21 +134,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
     setLoading(true);
     setError(null);
   }, []);
-
-  // Navigation handlers
-  const goToPage = useCallback((pageNum: number) => {
-    if (pageNum >= 1 && pageNum <= totalPages) {
-      setCurrentPage(pageNum);
-    }
-  }, [totalPages]);
-
-  const nextPage = useCallback(() => {
-    goToPage(currentPage + 1);
-  }, [currentPage, goToPage]);
-
-  const prevPage = useCallback(() => {
-    goToPage(currentPage - 1);
-  }, [currentPage, goToPage]);
 
   // Zoom handlers
   const zoomIn = useCallback(() => {
@@ -230,40 +211,11 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
             <FileText className="w-4 h-4 text-white" />
           </div>
           <span className="font-medium text-gray-900 dark:text-white text-sm">
-            PDF Viewer
+            PDF Viewer {totalPages > 0 && `(${totalPages} pages)`}
           </span>
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Navigation */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={prevPage}
-            disabled={currentPage <= 1}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          
-          <div className="flex items-center gap-2 px-3">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {currentPage} / {totalPages}
-            </span>
-          </div>
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={nextPage}
-            disabled={currentPage >= totalPages}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-
-          <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2" />
-
           {/* Zoom Controls */}
           <Button
             size="sm"
@@ -319,53 +271,55 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
 
       {/* PDF Content */}
       <div className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-gray-900/50 custom-scrollbar">
-        <div className="flex justify-center">
-          <div className="bg-white shadow-lg">
-            {fileData && (() => {
-              console.log('[PDFViewer] Rendering Document component with fileData:', {
-                size: fileData.size,
-                type: fileData.type,
-                isBlob: fileData instanceof Blob
-              });
-              return (
-              <Document
-                file={fileData}
-                onLoadStart={onDocumentLoadStart}
-                onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={onDocumentLoadError}
-                loading={
-                  <div className="flex items-center justify-center p-8">
-                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin mr-3" />
-                    <span className="text-gray-600">Loading PDF...</span>
-                  </div>
-                }
-                error={
-                  <div className="flex items-center justify-center p-8 text-red-600">
-                    <FileText className="w-8 h-8 mr-3" />
-                    <span>Failed to load PDF</span>
-                  </div>
-                }
-              >
-                <Page
-                  pageNumber={currentPage}
-                  scale={scale}
-                  rotate={rotation}
-                  loading={
-                    <div className="flex items-center justify-center p-8">
-                      <Loader2 className="w-6 h-6 text-blue-500 animate-spin mr-2" />
-                      <span className="text-sm text-gray-600">Rendering page...</span>
-                    </div>
-                  }
-                  error={
-                    <div className="flex items-center justify-center p-8 text-red-600">
-                      <span className="text-sm">Failed to render page</span>
-                    </div>
-                  }
-                />
-              </Document>
-              );
-            })()}
-          </div>
+        <div className="flex flex-col items-center gap-4">
+          {fileData && (() => {
+            console.log('[PDFViewer] Rendering Document component with fileData:', {
+              size: fileData.size,
+              type: fileData.type,
+              isBlob: fileData instanceof Blob
+            });
+            return (
+            <Document
+              file={fileData}
+              onLoadStart={onDocumentLoadStart}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading={
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin mr-3" />
+                  <span className="text-gray-600">Loading PDF...</span>
+                </div>
+              }
+              error={
+                <div className="flex items-center justify-center p-8 text-red-600">
+                  <FileText className="w-8 h-8 mr-3" />
+                  <span>Failed to load PDF</span>
+                </div>
+              }
+            >
+              {Array.from(new Array(totalPages), (_, index) => (
+                <div key={`page_${index + 1}`} className="bg-white shadow-lg mb-4">
+                  <Page
+                    pageNumber={index + 1}
+                    scale={scale}
+                    rotate={rotation}
+                    loading={
+                      <div className="flex items-center justify-center p-8">
+                        <Loader2 className="w-6 h-6 text-blue-500 animate-spin mr-2" />
+                        <span className="text-sm text-gray-600">Rendering page {index + 1}...</span>
+                      </div>
+                    }
+                    error={
+                      <div className="flex items-center justify-center p-8 text-red-600">
+                        <span className="text-sm">Failed to render page {index + 1}</span>
+                      </div>
+                    }
+                  />
+                </div>
+              ))}
+            </Document>
+            );
+          })()}
         </div>
       </div>
     </div>

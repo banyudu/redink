@@ -94,10 +94,20 @@ export class StorageManager {
     }
 
     try {
+      // Sanitize arXiv ID to remove slashes (e.g., "physics/0110044" -> "physics_0110044")
+      const sanitizedArxivId = arxivId.replace(/\//g, '_');
+      
       // Sanitize filename
       const sanitizedTitle = this.sanitizeFileName(title);
-      const fileName = `${arxivId}_${sanitizedTitle}.pdf`;
+      const fileName = `${sanitizedArxivId}_${sanitizedTitle}.pdf`;
       const filePath = `${this.storagePath}/${fileName}`;
+
+      // Ensure the parent directory exists before writing
+      const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+      if (!(await exists(dirPath))) {
+        await mkdir(dirPath, { recursive: true });
+        console.log('Created directory:', dirPath);
+      }
 
       // Download the PDF
       console.log('Downloading arXiv paper:', downloadUrl);
