@@ -21,7 +21,6 @@ import {
   Download,
   Loader2,
   FolderOpen,
-  Sparkles,
   AlertCircle,
   Settings2,
   X,
@@ -355,7 +354,7 @@ export const Home: React.FC = () => {
       <div className="text-center space-y-4 py-8">
         <div className="flex justify-center mb-4">
           <div className="relative">
-            <Sparkles className="w-12 h-12 text-blue-600 animate-glow" />
+            <img src="/logo.png" alt="Logo" className="w-12 h-12" />
             <div className="absolute inset-0 w-12 h-12 bg-blue-600/20 rounded-full blur-xl"></div>
           </div>
         </div>

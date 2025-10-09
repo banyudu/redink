@@ -2,17 +2,12 @@ import React, { useState } from 'react';
 import { 
   FileText, 
   Clock, 
-  User, 
-  Calendar,
   X,
   Trash2,
   MessageSquare,
-  ChevronRight,
-  Sparkles,
   File
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { useAppStore } from '../store';
 import type { RecentFile } from '../lib/cache';
 
 interface RecentFilesProps {
@@ -57,7 +52,7 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
 
   const getFileIcon = (file: RecentFile) => {
     if (file.path.toLowerCase().includes('arxiv') || file.title?.toLowerCase().includes('arxiv')) {
-      return <Sparkles className="w-5 h-5 text-purple-500" />;
+      return <img src="/logo.png" alt="Logo" className="w-5 h-5" />;
     }
     return <FileText className="w-5 h-5 text-blue-500" />;
   };
@@ -101,7 +96,7 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
       </div>
 
       <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
-        {recentFiles.map((file, index) => (
+        {recentFiles.map((file) => (
           <div
             key={file.id}
             className={`group relative overflow-hidden transition-all duration-300 ${

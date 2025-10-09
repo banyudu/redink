@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown";
 import { useAppStore } from "../store";
-import { Moon, Sun, Sparkles, MessageSquare, FileText, Home, Settings } from "lucide-react";
+import { Moon, Sun, MessageSquare, FileText, Home, Settings } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const { t } = useTranslation();
@@ -32,7 +32,7 @@ export const Navbar: React.FC = () => {
         {/* Logo section with gradient text */}
         <div className="flex items-center gap-3 group cursor-pointer" onClick={() => navigate("/")}>
           <div className="relative">
-            <Sparkles className="w-8 h-8 text-gradient animate-glow" />
+            <img src="/logo.png" alt="Logo" className="w-8 h-8 bg-transparent" />
           </div>
           <span className="font-bold text-xl text-gradient bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             {t("app.name")}
