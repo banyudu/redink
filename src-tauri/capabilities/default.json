@@ -17,6 +17,18 @@
     "fs:allow-appcache-read-recursive",
     "fs:allow-appcache-write-recursive",
     "fs:allow-home-write-recursive",
-    "dialog:default"
+    "dialog:default",
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        {
+          "url": "https://export.arxiv.org/*"
+        },
+        {
+          "url": "https://arxiv.org/*"
+        }
+      ]
+    }
   ]
 }

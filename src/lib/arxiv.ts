@@ -31,7 +31,7 @@ interface CachedArxivData {
 
 const ARXIV_API_BASE = 'https://export.arxiv.org/api/query';
 const DEFAULT_MAX_RESULTS = 20;
-const CACHE_DURATION = 1000 * 60 * 60 * 24; // 24 hours for persistent cache
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour for persistent cache
 const CACHE_DIR = 'redink/arxiv-cache';
 
 // Popular ArXiv categories
@@ -153,30 +153,47 @@ export async function searchArxivPapers(
     sortOrder = 'descending'
   } = options;
   
+  // Handle empty query - fetch featured papers instead
+  if (!query || query.trim() === '') {
+    console.log('[ArXiv API] Empty query detected, fetching featured papers instead');
+    return getFeaturedPapers(maxResults);
+  }
+  
   try {
-    const params = new URLSearchParams({
-      search_query: query,
-      start: '0',
-      max_results: maxResults.toString(),
-      sortBy,
-      sortOrder
-    });
+    // ArXiv API requires search_query to NOT be URL-encoded (keep + and : as-is)
+    // Only encode the query minimally - replace spaces with + but keep operators intact
+    const encodedQuery = query.replace(/ /g, '+');
     
-    const url = `${ARXIV_API_BASE}?${params.toString()}`;
-    console.log('[ArXiv API] Fetching:', url);
+    // Build URL manually to avoid over-encoding the search_query parameter
+    const url = `${ARXIV_API_BASE}?search_query=${encodedQuery}&start=0&max_results=${maxResults}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
+    console.log('[ArXiv API] Requesting papers...');
+    console.log('[ArXiv API] Query:', query);
+    console.log('[ArXiv API] Full URL:', url);
     
     const response = await fetch(url);
+    console.log('[ArXiv API] Response status:', response.status, response.statusText);
+    
     if (!response.ok) {
-      throw new Error(`ArXiv API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('[ArXiv API] Error response:', errorText);
+      throw new Error(`ArXiv API error: ${response.status} ${response.statusText}`);
     }
     
     const xmlText = await response.text();
+    console.log('[ArXiv API] Received XML, length:', xmlText.length);
+    
     const result = parseArxivResponse(xmlText);
     
-    console.log(`[ArXiv API] Found ${result.papers.length} papers`);
+    console.log(`[ArXiv API] Successfully parsed ${result.papers.length} papers`);
+    console.log('[ArXiv API] Total results available:', result.totalResults);
     return result.papers;
-  } catch (error) {
-    console.error('[ArXiv API] Search failed:', error);
+  } catch (error: any) {
+    console.error('[ArXiv API] Search failed with error:', error);
+    console.error('[ArXiv API] Error details:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name
+    });
     throw error;
   }
 }
@@ -264,6 +281,12 @@ class ArxivCacheManager {
     const memCached = this.memoryCache.get(key);
     if (memCached) {
       if (Date.now() - memCached.timestamp <= CACHE_DURATION) {
+        // Skip empty cache - don't return empty results
+        if (memCached.data.length === 0) {
+          console.log('[ArXiv Cache] Memory hit but empty, skipping:', key);
+          this.memoryCache.delete(key);
+          return null;
+        }
         console.log('[ArXiv Cache] Memory hit:', key);
         return memCached.data;
       } else {
@@ -282,6 +305,11 @@ class ArxivCacheManager {
         
         // Check if cache is expired
         if (Date.now() - cached.timestamp <= CACHE_DURATION) {
+          // Skip empty cache - don't return empty results
+          if (cached.data.length === 0) {
+            console.log('[ArXiv Cache] Persistent hit but empty, skipping:', key);
+            return null;
+          }
           console.log('[ArXiv Cache] Persistent hit:', key);
           // Store in memory cache for faster access
           this.memoryCache.set(key, cached);
@@ -298,6 +326,12 @@ class ArxivCacheManager {
   }
   
   async set(query: string, data: ArxivPaper[], options: any = {}): Promise<void> {
+    // Don't cache empty results - they might be errors
+    if (data.length === 0) {
+      console.log('[ArXiv Cache] Skipping cache for empty result');
+      return;
+    }
+    
     const key = this.getCacheKey(query, options);
     const cached: CachedArxivData = { data, timestamp: Date.now() };
     
@@ -331,6 +365,21 @@ class ArxivCacheManager {
     this.memoryCache.clear();
     console.log('[ArXiv Cache] Memory cache cleared');
   }
+  
+  async clearAll(): Promise<void> {
+    // Clear memory cache
+    this.memoryCache.clear();
+    
+    // Clear persistent cache directory
+    try {
+      await this.initialize();
+      // Note: There's no built-in way to delete a directory in Tauri fs plugin
+      // So we'll just let the cache naturally expire or get overwritten
+      console.log('[ArXiv Cache] All caches will be ignored and overwritten on next fetch');
+    } catch (error) {
+      console.error('[ArXiv Cache] Failed to clear persistent cache:', error);
+    }
+  }
 }
 
 export const arxivCache = new ArxivCacheManager();
@@ -342,6 +391,12 @@ export async function searchArxivPapersCached(
   query: string,
   options: Parameters<typeof searchArxivPapers>[1] = {}
 ): Promise<ArxivPaper[]> {
+  // Handle empty query - use featured papers with caching
+  if (!query || query.trim() === '') {
+    console.log('[ArXiv API] Empty query in cached search, fetching featured papers');
+    return getFeaturedPapersCached(options.maxResults || DEFAULT_MAX_RESULTS);
+  }
+  
   // Check cache first
   const cached = await arxivCache.get(query, options);
   if (cached) {
