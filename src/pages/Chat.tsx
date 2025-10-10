@@ -40,6 +40,11 @@ const Chat: React.FC = () => {
   const [index, setIndex] = useState<HybridRagIndex | null>(null);
   const [question, setQuestion] = useState("");
   const [meta, setMeta] = useState<{ pages: number; chars: number; hasSemanticIndex: boolean } | null>(null);
+  const [leftWidth, setLeftWidth] = useState(50); // Percentage for left column
+  const [isDragging, setIsDragging] = useState(false);
+  
+  // Reference for chat messages container to enable auto-scroll
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const messages = useMemo(() => {
     if (!currentPaper) return [] as { role: "user" | "assistant"; content: string; timestamp: number }[];
@@ -138,12 +143,17 @@ const Chat: React.FC = () => {
     }
   }, []);
 
-  // Auto-load last selected PDF on component mount
+  // Auto-load last selected PDF on component mount or when currentPaper changes
   React.useEffect(() => {
     const autoLoadLastPdf = async () => {
-      // Load PDF if we have a path and either no current paper or current paper but no index
-      const shouldLoad = (lastSelectedPdfPath || currentPaper) && !index && !loading && !autoLoading;
       const pathToLoad = currentPaper || lastSelectedPdfPath;
+      
+      // Check if we need to load/reload the PDF
+      // Generate documentId from path to compare with current index
+      const documentId = pathToLoad ? btoa(pathToLoad).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32) : null;
+      // Load if: we have a path AND (no index OR index is for a different document)
+      const needsLoad = pathToLoad && (!index || (index && documentId && index.documentId !== documentId));
+      const shouldLoad = needsLoad && !loading && !autoLoading;
       
       if (shouldLoad && pathToLoad) {
         // Validate path before attempting to load
@@ -213,15 +223,7 @@ const Chat: React.FC = () => {
       const prompt = buildPrompt(q, contexts);
       const answer = await chatComplete(prompt, { provider: 'ollama', model: selectedModel });
       
-      // Add debug info if semantic search was used
-      let debugInfo = '';
-      if (index.hasSemanticIndex && results.length > 0) {
-        const avgSemanticScore = (results.reduce((sum, r) => sum + r.semanticScore, 0) / results.length).toFixed(3);
-        const avgTfidfScore = (results.reduce((sum, r) => sum + r.tfidfScore, 0) / results.length).toFixed(3);
-        debugInfo = `\n\n_[Hybrid Search: TF-IDF=${avgTfidfScore}, Semantic=${avgSemanticScore}]_`;
-      }
-      
-      addChatMessage(currentPaper, "assistant", answer + debugInfo);
+      addChatMessage(currentPaper, "assistant", answer);
     } catch (err: any) {
       console.error('[Chat] Error:', err);
       addChatMessage(currentPaper, "assistant", `Error: ${err?.message ?? String(err)}`);
@@ -229,6 +231,62 @@ const Chat: React.FC = () => {
       setSending(false);
     }
   }, [addChatMessage, currentPaper, index, question, selectedModel, sending]);
+
+  // Handle resize dragging
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent text selection from starting
+    setIsDragging(true);
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      const containerWidth = window.innerWidth - 48; // Account for padding
+      const newLeftWidth = (e.clientX / containerWidth) * 100;
+      // Clamp between 30% and 70%
+      setLeftWidth(Math.min(Math.max(newLeftWidth, 30), 70));
+    }
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add/remove mouse event listeners for dragging
+  React.useEffect(() => {
+    if (isDragging) {
+      // Prevent text selection while dragging - use multiple approaches for reliability
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+      // Also add a class to prevent pointer events on child elements
+      document.body.classList.add('dragging-separator');
+      
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      // Prevent selection during drag
+      window.addEventListener('selectstart', preventSelection);
+      
+      return () => {
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+        document.body.style.cursor = '';
+        document.body.classList.remove('dragging-separator');
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('selectstart', preventSelection);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+  
+  // Prevent selection event during drag
+  const preventSelection = useCallback((e: Event) => {
+    e.preventDefault();
+  }, []);
+
+  // Auto-scroll to bottom when messages change
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, sending]);
 
   // Get document title for display
   const documentTitle = currentPaper ? 
@@ -269,7 +327,7 @@ const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] animate-fade-in px-6 py-4 max-w-[1800px] mx-auto">
+    <div className="h-[calc(100vh-140px)] animate-fade-in px-6 py-4 max-w-full mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
@@ -316,15 +374,27 @@ const Chat: React.FC = () => {
         </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-12 gap-6 h-[calc(100%-72px)]">
+      {/* Two Column Layout with Resizable Split */}
+      <div className="flex gap-0 h-[calc(100%-72px)] relative">
         {/* Left Column - PDF Viewer */}
-        <div className="col-span-6 h-full overflow-hidden">
+        <div 
+          className="h-full overflow-hidden transition-all"
+          style={{ width: `${leftWidth}%` }}
+        >
           <PDFViewer filePath={currentPaper} className="h-full" />
         </div>
 
+        {/* Resize Handle */}
+        <div
+          className={`w-1.5 cursor-col-resize transition-all`}
+          onMouseDown={handleMouseDown}
+        />
+
         {/* Right Column - Chat Interface */}
-        <div className="col-span-6 flex flex-col h-full min-h-0">
+        <div 
+          className="flex flex-col h-full min-h-0 transition-all"
+          style={{ width: `${100 - leftWidth}%` }}
+        >
           {/* Chat Messages Area */}
           <div className="flex-1 glass rounded-2xl border border-white/20 backdrop-blur-xl overflow-hidden mb-4 flex flex-col min-h-0">
             <div className="p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl flex-shrink-0">
@@ -408,6 +478,9 @@ const Chat: React.FC = () => {
                     </div>
                   </div>
                 )}
+                
+                {/* Invisible div for auto-scroll */}
+                <div ref={messagesEndRef} />
               </div>
           </div>
 
@@ -442,22 +515,6 @@ const Chat: React.FC = () => {
                 )}
               </Button>
             </div>
-            
-            {index && (
-              <div className="mt-3 pt-3 border-t border-white/20">
-                <div className="flex items-start gap-2">
-                  {meta?.hasSemanticIndex && (
-                    <Sparkles className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0" />
-                  )}
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {meta?.hasSemanticIndex 
-                      ? "💡 Hybrid RAG active: Using both keyword and semantic search for better results"
-                      : "💡 Tip: Ask specific questions about methodology, findings, or request summaries of specific sections"
-                    }
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

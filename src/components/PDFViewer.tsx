@@ -32,6 +32,26 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileData, setFileData] = useState<Blob | null>(null);
+  const pdfContainerRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      // Use native event listener with passive: false to prevent default zoom
+      const handleWheelNative = (e: WheelEvent) => {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          const delta = -e.deltaY / 1000;
+          setScale(prev => {
+            const newScale = prev + delta;
+            return Math.max(0.5, Math.min(newScale, 3.0));
+          });
+        }
+      };
+      node.addEventListener('wheel', handleWheelNative, { passive: false });
+      return () => {
+        node.removeEventListener('wheel', handleWheelNative);
+      };
+    }
+  }, []);
 
   // Load file data when filePath changes
   useEffect(() => {
@@ -163,6 +183,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
     setScale(Math.max(0.5, Math.min(newScale, 3.0)));
   }, []);
 
+
   // Handle case when no file path is provided
   if (!filePath) {
     return (
@@ -270,8 +291,11 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
       </div>
 
       {/* PDF Content */}
-      <div className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-gray-900/50 custom-scrollbar">
-        <div className="flex flex-col items-center gap-4">
+      <div 
+        ref={pdfContainerRef}
+        className="flex-1 overflow-auto p-2 bg-gray-50 dark:bg-gray-900/50 custom-scrollbar"
+      >
+        <div className="flex flex-col items-center gap-2">
           {fileData && (() => {
             console.log('[PDFViewer] Rendering Document component with fileData:', {
               size: fileData.size,
@@ -298,7 +322,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
               }
             >
               {Array.from(new Array(totalPages), (_, index) => (
-                <div key={`page_${index + 1}`} className="bg-white shadow-lg mb-4">
+                <div key={`page_${index + 1}`} className="bg-white">
                   <Page
                     pageNumber={index + 1}
                     scale={scale}
