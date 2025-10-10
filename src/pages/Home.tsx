@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { whisper } from "@/lib/utils";
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -177,6 +178,7 @@ export const Home: React.FC = () => {
 
   // Process PDF file and navigate to chat
   const processPdfFile = useCallback(async (filePath: string) => {
+    whisper('filePath is: ', filePath)
     setLoading(true);
     setLoadingFile(filePath);
     

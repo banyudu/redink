@@ -3,7 +3,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useAppStore } from "../store";
 import { extractPdfFromPathWithMeta } from "../lib/pdf";
-import { buildIndex, chunkText, retrieve, type RagIndex } from "../lib/rag";
+import { hybridRAG, type HybridRagIndex } from "../lib/hybrid-rag";
 import { buildPrompt, chatComplete } from "../lib/llm";
 import { cacheManager } from "../lib/cache";
 import { PDFViewer } from "../components/PDFViewer";
@@ -17,7 +17,8 @@ import {
   Settings, 
   MessageSquare,
   ArrowLeft,
-  Home
+  Home,
+  Sparkles
 } from "lucide-react";
 
 const Chat: React.FC = () => {
@@ -36,9 +37,9 @@ const Chat: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [autoLoading, setAutoLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [index, setIndex] = useState<RagIndex | null>(null);
+  const [index, setIndex] = useState<HybridRagIndex | null>(null);
   const [question, setQuestion] = useState("");
-  const [meta, setMeta] = useState<{ pages: number; chars: number } | null>(null);
+  const [meta, setMeta] = useState<{ pages: number; chars: number; hasSemanticIndex: boolean } | null>(null);
 
   const messages = useMemo(() => {
     if (!currentPaper) return [] as { role: "user" | "assistant"; content: string; timestamp: number }[];
@@ -47,23 +48,62 @@ const Chat: React.FC = () => {
   }, [chatHistory, currentPaper]);
 
   const loadPdf = useCallback(async (pathToLoad: string) => {
-    if (!pathToLoad) return;
+    if (!pathToLoad) {
+      console.error('[Chat] No path provided to loadPdf');
+      return;
+    }
     
     setLoading(true);
     try {
+      console.log('[Chat] Loading PDF from path:', pathToLoad);
+      
+      // Validate that this is a PDF path, not a vector storage path
+      if (pathToLoad.includes('.cache/redink/vectors')) {
+        console.error('[Chat] Invalid path - this is a vector storage path, not a PDF path');
+        alert('Error: Invalid file path. Please select a valid PDF file.');
+        return;
+      }
+      
+      // Extract PDF text
+      console.log('[Chat] Extracting PDF text...');
       const result = await extractPdfFromPathWithMeta(pathToLoad);
       const { text, pageCount, charCount, title, fileSize } = result;
-      const chunks = chunkText(text);
-      const idx = buildIndex(chunks);
+      
+      console.log('[Chat] PDF extracted:', { pageCount, charCount, titleLength: title?.length });
+      
+      // Generate document ID from path (stable identifier)
+      const documentId = btoa(pathToLoad).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+      console.log('[Chat] Document ID:', documentId);
+      
+      // Build hybrid RAG index
+      console.log('[Chat] Building hybrid RAG index...');
+      const idx = await hybridRAG.buildIndex(documentId, text, {
+        chunkStrategy: 'semantic',
+        forceRebuild: false, // Use cache if available
+      });
+      
       setIndex(idx);
-      setMeta({ pages: pageCount, chars: charCount });
+      setMeta({ 
+        pages: pageCount, 
+        chars: charCount,
+        hasSemanticIndex: idx.hasSemanticIndex
+      });
+      
+      // Store the actual PDF path, not the document ID or vector path
       setCurrentPaper(pathToLoad);
       setLastSelectedPdfPath(pathToLoad);
       
+      console.log('[Chat] Index created successfully:', {
+        chunks: idx.metadata.chunkCount,
+        hasSemanticIndex: idx.hasSemanticIndex,
+        model: idx.metadata.embeddingModel,
+        pdfPath: pathToLoad
+      });
+      
       // Add to recent files cache
       const recentFile = {
-        id: btoa(pathToLoad).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16),
-        path: pathToLoad,
+        id: documentId,
+        path: pathToLoad, // This is the actual PDF path
         title: title || pathToLoad.split('/').pop() || 'Untitled',
         lastAccessed: Date.now(),
         addedDate: Date.now(),
@@ -76,8 +116,13 @@ const Chat: React.FC = () => {
       addRecentFile(recentFile);
       
     } catch (err: any) {
-      console.error('Failed to load PDF:', err);
-      alert(`Failed to load PDF: ${err?.message ?? String(err)}`);
+      console.error('[Chat] Failed to load PDF:', err);
+      console.error('[Chat] Error details:', {
+        message: err?.message,
+        stack: err?.stack,
+        path: pathToLoad
+      });
+      alert(`Failed to load PDF: ${err?.message ?? String(err)}\n\nPath: ${pathToLoad}`);
     } finally {
       setLoading(false);
     }
@@ -101,19 +146,34 @@ const Chat: React.FC = () => {
       const pathToLoad = currentPaper || lastSelectedPdfPath;
       
       if (shouldLoad && pathToLoad) {
+        // Validate path before attempting to load
+        if (pathToLoad.includes('.cache/redink/vectors')) {
+          console.error('[Chat] Invalid path in store - clearing:', pathToLoad);
+          setCurrentPaper(null);
+          setLastSelectedPdfPath(null);
+          navigate('/');
+          return;
+        }
+        
         setAutoLoading(true);
         try {
+          console.log('[Chat] Auto-loading PDF from path:', pathToLoad);
           const fileExists = await checkFileExists(pathToLoad);
           if (fileExists) {
-            console.log("Auto-loading PDF for text extraction:", pathToLoad);
+            console.log("[Chat] Auto-loading PDF for text extraction:", pathToLoad);
             await loadPdf(pathToLoad);
           } else {
-            console.log("PDF file no longer exists:", pathToLoad);
+            console.log("[Chat] PDF file no longer exists:", pathToLoad);
             // Clear the invalid path and redirect to home
             setCurrentPaper(null);
             setLastSelectedPdfPath(null);
             navigate('/');
           }
+        } catch (error) {
+          console.error('[Chat] Error in auto-load:', error);
+          setCurrentPaper(null);
+          setLastSelectedPdfPath(null);
+          navigate('/');
         } finally {
           setAutoLoading(false);
         }
@@ -134,12 +194,36 @@ const Chat: React.FC = () => {
     addChatMessage(currentPaper, "user", q);
     
     try {
-      const top = retrieve(index, q, 3);
-      const contexts = top.map((t) => t.chunk.text);
+      console.log('[Chat] Searching for:', q);
+      
+      // Use hybrid RAG search
+      const results = await hybridRAG.search(index.documentId, q, {
+        topK: 5,
+        tfidfWeight: 0.4,
+        semanticWeight: 0.6,
+        fusionMethod: 'weighted',
+      });
+      
+      console.log('[Chat] Search results:', results.length);
+      
+      // Extract context from results
+      const contexts = results.map(r => r.chunk.text);
+      
+      // Build prompt and get answer
       const prompt = buildPrompt(q, contexts);
       const answer = await chatComplete(prompt, { provider: 'ollama', model: selectedModel });
-      addChatMessage(currentPaper, "assistant", answer);
+      
+      // Add debug info if semantic search was used
+      let debugInfo = '';
+      if (index.hasSemanticIndex && results.length > 0) {
+        const avgSemanticScore = (results.reduce((sum, r) => sum + r.semanticScore, 0) / results.length).toFixed(3);
+        const avgTfidfScore = (results.reduce((sum, r) => sum + r.tfidfScore, 0) / results.length).toFixed(3);
+        debugInfo = `\n\n_[Hybrid Search: TF-IDF=${avgTfidfScore}, Semantic=${avgSemanticScore}]_`;
+      }
+      
+      addChatMessage(currentPaper, "assistant", answer + debugInfo);
     } catch (err: any) {
+      console.error('[Chat] Error:', err);
       addChatMessage(currentPaper, "assistant", `Error: ${err?.message ?? String(err)}`);
     } finally {
       setSending(false);
@@ -206,8 +290,14 @@ const Chat: React.FC = () => {
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">{documentTitle}</h1>
               {meta && (
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {meta.pages} pages • {(meta.chars / 1000).toFixed(1)}k chars • {index?.chunks.length ?? 0} chunks indexed
+                <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                  <span>{meta.pages} pages • {(meta.chars / 1000).toFixed(1)}k chars • {index?.chunks.length ?? 0} chunks</span>
+                  {meta.hasSemanticIndex && (
+                    <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                      <Sparkles className="w-3 h-3" />
+                      <span className="text-xs">Hybrid RAG</span>
+                    </span>
+                  )}
                 </p>
               )}
             </div>
@@ -355,9 +445,17 @@ const Chat: React.FC = () => {
             
             {index && (
               <div className="mt-3 pt-3 border-t border-white/20">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  💡 Tip: Ask specific questions about methodology, findings, or request summaries of specific sections
-                </p>
+                <div className="flex items-start gap-2">
+                  {meta?.hasSemanticIndex && (
+                    <Sparkles className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0" />
+                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {meta?.hasSemanticIndex 
+                      ? "💡 Hybrid RAG active: Using both keyword and semantic search for better results"
+                      : "💡 Tip: Ask specific questions about methodology, findings, or request summaries of specific sections"
+                    }
+                  </p>
+                </div>
               </div>
             )}
           </div>
