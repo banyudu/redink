@@ -1,0 +1,348 @@
+# Redink - Cursor Rules
+
+## Project Overview
+Redink is a Tauri-based desktop application for managing and chatting with ArXiv papers using local LLM models. It features PDF viewing, RAG (Retrieval Augmented Generation) with vector search, and offline-first architecture.
+
+## Core Tech Stack
+- **Frontend**: React 18.3, TypeScript 5.6, Vite 6.0
+- **Backend**: Rust (Tauri 2), LanceDB 0.22.2
+- **Styling**: Tailwind CSS v4.1.8, shadcn/ui components
+- **State**: Zustand 4.5 with persistence
+- **Routing**: React Router v6
+- **i18n**: i18next + react-i18next
+- **PDF**: pdfjs-dist 5.3.93, react-pdf 10.1
+- **ML**: @xenova/transformers 2.17.2 for embeddings
+
+## Directory Structure
+
+### Frontend (`src/`)
+- `components/` - Reusable UI components (Layout, Navbar, PDFViewer, etc.)
+- `components/ui/` - shadcn/ui primitive components (button, card, input, etc.)
+- `pages/` - Route pages (Home, Chat, Settings)
+- `lib/` - Business logic and utilities (vector-store, rag, embeddings, llm, etc.)
+- `store/` - Zustand state management
+- `i18n/` - Internationalization configuration
+- `types/` - TypeScript type definitions
+
+### Backend (`src-tauri/`)
+- `src/` - Rust source code
+  - `lib.rs` - Library entry point
+  - `main.rs` - Application entry point
+  - `vector_store.rs` - LanceDB vector operations
+- `Cargo.toml` - Rust dependencies
+- `tauri.conf.json` - Tauri configuration
+
+### Temporary Files
+- `.cursor/` - **ALL temporary files, plans, summaries, analysis documents**
+- `.cursor/plans/` - Planning documents, migration guides, summaries
+
+## Code Style & Conventions
+
+### TypeScript
+1. **Strict Mode**: Always use TypeScript strict mode (enabled in `tsconfig.json`)
+2. **Import Aliases**: Use `@/*` for imports from `src/` directory
+3. **Async/Await**: Prefer async/await over promises
+4. **Error Handling**: Always use try-catch for async operations
+5. **Type Safety**: 
+   - Define interfaces for all data structures
+   - Use `type` for unions, `interface` for objects
+   - Avoid `any` type; use `unknown` if type is truly unknown
+6. **Naming Conventions**:
+   - Files: kebab-case (`vector-store.ts`, `hybrid-rag.ts`)
+   - Components: PascalCase (`PDFViewer.tsx`, `RecentFiles.tsx`)
+   - Functions/Variables: camelCase (`addRecentFile`, `currentPaper`)
+   - Constants: UPPER_SNAKE_CASE for true constants
+   - Interfaces: PascalCase without `I` prefix (`VectorSearchResult`, `AppState`)
+7. **Function Documentation**: Use JSDoc for public APIs and complex functions
+8. **Console Logging**: Use contextual prefixes `[ComponentName]` or `[ModuleName]`
+
+### React
+1. **Components**:
+   - Use functional components with hooks
+   - Use React.forwardRef for components that need ref forwarding
+   - Export components as named exports
+   - Use `React.FC` sparingly; prefer explicit prop types
+2. **Hooks**:
+   - Follow Rules of Hooks (no conditionals, loops)
+   - Custom hooks start with `use` prefix
+   - Memoize expensive computations with `useMemo`
+   - Use `useCallback` for functions passed as props
+3. **State Management**:
+   - Use Zustand for global state
+   - Use local state for UI-only state
+   - Persist important state with Zustand persist middleware
+4. **Props**:
+   - Define prop interfaces inline or separately for complex props
+   - Use destructuring in function parameters
+   - Provide default values where appropriate
+
+### shadcn/ui Components
+1. **Styling**:
+   - Use `class-variance-authority` (cva) for variant-based styling
+   - Use `tailwind-merge` via `cn()` utility for class merging
+   - Follow the component pattern from existing components in `components/ui/`
+2. **Variants**:
+   - Define clear variant names (default, outline, ghost, destructive)
+   - Support size variants (sm, default, lg, icon)
+   - Use gradient backgrounds for primary actions
+   - Use glass morphism effects for secondary elements
+3. **Accessibility**:
+   - Use Radix UI primitives for accessibility
+   - Include proper ARIA attributes
+   - Support keyboard navigation
+
+### Rust
+1. **Style**: Follow standard Rust conventions (rustfmt)
+2. **Error Handling**: 
+   - Use `Result<T, String>` for Tauri commands
+   - Convert errors to strings with `.map_err(|e| format!("...: {}", e))`
+3. **Async**: Use tokio for async runtime
+4. **Commands**:
+   - Annotate with `#[tauri::command]`
+   - Use snake_case for function names
+   - Accept serializable types (impl Serialize + Deserialize)
+5. **State**: Use `State<'_, Arc<Mutex<T>>>` for shared state
+6. **Documentation**: Use `///` for public API documentation
+
+### Tauri Integration
+1. **Frontend → Backend**: Use `invoke()` from `@tauri-apps/api/core`
+2. **Type Safety**: Define matching interfaces/types in both TS and Rust
+3. **Error Handling**: Always handle invoke errors with try-catch
+4. **Logging**: Use console.log in TS, println! or proper logging in Rust
+
+## Component Patterns
+
+### Singleton Services
+Use singleton pattern for stateful services (e.g., VectorStore):
+```typescript
+export class ServiceName {
+  private static instance: ServiceName;
+  private constructor() {}
+  
+  public static getInstance(): ServiceName {
+    if (!ServiceName.instance) {
+      ServiceName.instance = new ServiceName();
+    }
+    return ServiceName.instance;
+  }
+}
+
+export const serviceName = ServiceName.getInstance();
+```
+
+### Zustand Store Pattern
+```typescript
+interface StoreState {
+  // state properties
+  someValue: string;
+  // actions
+  setSomeValue: (value: string) => void;
+}
+
+export const useStore = create<StoreState>()(
+  persist(
+    (set) => ({
+      someValue: 'default',
+      setSomeValue: (value) => set({ someValue: value }),
+    }),
+    { name: 'store-name' }
+  )
+);
+```
+
+### Tauri Command Pattern (Rust)
+```rust
+#[tauri::command]
+pub async fn command_name(
+    param: String,
+    state: State<'_, Arc<Mutex<StateType>>>,
+) -> Result<ReturnType, String> {
+    // implementation
+    Ok(result)
+}
+```
+
+## Best Practices
+
+### Performance
+1. Lazy load heavy components (PDF viewer, transformers)
+2. Memoize expensive computations
+3. Use React.memo for pure components
+4. Implement virtual scrolling for long lists
+5. Optimize vector embeddings (batch operations)
+
+### Security
+1. Validate all user inputs
+2. Sanitize file paths before file operations
+3. Use Tauri's security features (CSP, permissions)
+4. Don't expose sensitive data in error messages
+
+### Offline-First
+1. Store data locally (LanceDB, local cache)
+2. Handle network failures gracefully
+3. Cache embeddings to avoid recomputation
+4. Use local storage path: `~/.cache/redink/`
+
+### Error Handling
+1. Always catch and log errors
+2. Show user-friendly error messages
+3. Provide actionable error recovery options
+4. Log detailed errors for debugging
+
+### Testing (Future)
+1. Unit tests for utilities and business logic
+2. Integration tests for Tauri commands
+3. E2E tests for critical user flows
+4. Test offline functionality
+
+## File Organization Rules
+
+### Component Files
+- One component per file
+- Co-locate component-specific types
+- Export component as default or named export
+- Place shared types in `types/` directory
+
+### Utility Files
+- Group related utilities together
+- Export pure functions
+- Avoid side effects in utilities
+- Document complex algorithms
+
+### Temporary Files
+**CRITICAL**: All temporary files, documentation, plans, summaries, and analysis documents MUST be placed in `.cursor/` directory:
+- `.cursor/plans/` - Planning docs, migration guides, implementation summaries
+- `.cursor/notes/` - Development notes, research findings
+- `.cursor/analysis/` - Code analysis, architecture docs
+- **Never** create temporary markdown files in project root
+- **Never** create `.md` files outside `.cursor/` unless they're permanent project docs
+
+## Dependencies
+
+### Adding Dependencies
+1. **Frontend**: Use `pnpm add <package>`
+2. **Backend**: Add to `src-tauri/Cargo.toml`
+3. Document major dependency additions
+4. Prefer well-maintained, typed packages
+
+### Version Management
+- Lock file: `pnpm-lock.yaml` (frontend), `Cargo.lock` (backend)
+- Keep dependencies updated but test thoroughly
+- Major version upgrades require testing
+
+## Development Workflow
+
+### Starting Development
+```bash
+pnpm dev              # Start frontend dev server
+pnpm tauri dev        # Start Tauri app in dev mode
+```
+
+### Building
+```bash
+pnpm build            # Build frontend
+pnpm tauri build      # Build Tauri app
+```
+
+### Code Quality
+- Use TypeScript strict mode
+- Run linter before commits (if configured)
+- Format code consistently
+- Write meaningful commit messages
+
+## Common Patterns
+
+### Loading States
+```typescript
+const [loading, setLoading] = useState(false);
+try {
+  setLoading(true);
+  // async operation
+} catch (error) {
+  console.error('[Component]', error);
+} finally {
+  setLoading(false);
+}
+```
+
+### Vector Store Usage
+```typescript
+import { vectorStore } from '@/lib/vector-store';
+
+await vectorStore.initialize();
+await vectorStore.addChunks(docId, chunks, embeddings);
+const results = await vectorStore.search(docId, queryEmbedding, topK);
+```
+
+### State Updates
+```typescript
+const { setTheme } = useAppStore();
+setTheme('dark');  // Zustand handles immutability
+```
+
+### Tauri Invoke
+```typescript
+import { invoke } from '@tauri-apps/api/core';
+
+try {
+  const result = await invoke<ResultType>('command_name', {
+    param1: value1,
+    param2: value2,
+  });
+} catch (error) {
+  console.error('Command failed:', error);
+}
+```
+
+## Key Technologies Notes
+
+### LanceDB 0.22.2
+- Vector database for embeddings
+- Uses Arrow arrays for data representation
+- Offline storage in `~/.cache/redink/vectors`
+- Per-document tables: `doc_{document_id}`
+
+### @xenova/transformers
+- Browser-based ML models
+- Used for generating embeddings
+- Model: all-MiniLM-L6-v2 (384 dimensions)
+- Runs in WebWorker for performance
+
+### Tailwind CSS v4
+- No config file (uses defaults)
+- Import in CSS: `@import "tailwindcss"`
+- Use modern CSS features
+- Gradient backgrounds for modern UI
+
+## Architecture Principles
+
+1. **Separation of Concerns**: UI components, business logic, and state are separate
+2. **Offline First**: All critical features work without network
+3. **Type Safety**: Strong typing in both TS and Rust
+4. **Performance**: Lazy loading, caching, efficient algorithms
+5. **Modularity**: Small, focused modules with clear interfaces
+6. **Error Resilience**: Graceful degradation, clear error messages
+7. **Developer Experience**: Clear patterns, good documentation, helpful logs
+
+## AI Assistant Guidelines
+
+When working on this project:
+1. Follow all conventions and patterns established above
+2. **Always** place temporary files in `.cursor/` directory
+3. Maintain type safety across TS-Rust boundary
+4. Consider offline-first architecture in design
+5. Use existing patterns and components when possible
+6. Document non-obvious decisions
+7. Test Tauri commands thoroughly
+8. Keep dependencies up to date but stable
+9. Prioritize user experience and performance
+10. Write clear, maintainable code
+
+## References
+
+- [Tauri Documentation](https://tauri.app/v2/)
+- [LanceDB Documentation](https://lancedb.github.io/lancedb/)
+- [shadcn/ui Components](https://ui.shadcn.com/)
+- [Zustand Documentation](https://zustand-demo.pmnd.rs/)
+- [Tailwind CSS v4](https://tailwindcss.com/)
+
