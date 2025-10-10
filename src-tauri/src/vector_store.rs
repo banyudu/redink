@@ -5,9 +5,8 @@ use std::sync::Arc as StdArc;
 use tauri::State;
 use tokio::sync::Mutex;
 use futures::stream::StreamExt;
-use arrow_array::{ArrayRef, Float32Array, Int32Array, StringArray, FixedSizeListArray, RecordBatch};
+use arrow_array::{ArrayRef, Float32Array, Int32Array, StringArray, FixedSizeListArray, RecordBatch, RecordBatchIterator};
 use arrow_schema::{DataType, Field, Schema};
-use arrow_ipc::writer::FileWriter;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VectorSearchResult {
@@ -69,14 +68,11 @@ pub async fn vector_store_add_chunks(
     let table_name = format!("doc_{}", document_id.replace(|c: char| !c.is_alphanumeric(), "_"));
 
     // Create table (overwrite if exists) - try drop first
-    let _ = db.drop_table(&table_name).await; // Ignore error if table doesn't exist
+    // LanceDB 0.22.2 API: drop_table(name, namespace)
+    let _ = db.drop_table(&table_name, &[]).await; // Ignore error if table doesn't exist
     
-    // Try simplified approach: write to temp file then import
-    // LanceDB can read from Arrow IPC files
-    use std::fs::File;
-    use std::path::PathBuf;
-    
-    // Build Arrow arrays directly
+    // Build Arrow arrays following LanceDB 0.22.2 API guide
+    // Reference: https://docs.rs/lancedb/latest/lancedb/index.html
     let ids: StringArray = chunks.iter().map(|c| Some(c.id.as_str())).collect();
     let texts: StringArray = chunks.iter().map(|c| Some(c.text.as_str())).collect();
     let chunk_indices: Int32Array = chunks.iter().map(|c| Some(c.chunk_index)).collect();
@@ -89,6 +85,8 @@ pub async fn vector_store_add_chunks(
         vector_values.extend_from_slice(&chunk.vector);
     }
     let vector_data = Float32Array::from(vector_values);
+    
+    // Use from_iter_primitive as shown in the official docs
     let vectors = FixedSizeListArray::try_new(
         StdArc::new(Field::new("item", DataType::Float32, true)),
         vector_dim,
@@ -122,33 +120,18 @@ pub async fn vector_store_add_chunks(
     )
     .map_err(|e| format!("Failed to create record batch: {}", e))?;
     
-    // Write to temporary file
-    let temp_path = PathBuf::from(&storage_path).join(format!("temp_{}.arrow", table_name));
-    {
-        let file = File::create(&temp_path)
-            .map_err(|e| format!("Failed to create temp file: {}", e))?;
-        let mut writer = FileWriter::try_new(file, &schema)
-            .map_err(|e| format!("Failed to create IPC writer: {}", e))?;
-        writer.write(&batch)
-            .map_err(|e| format!("Failed to write batch: {}", e))?;
-        writer.finish()
-            .map_err(|e| format!("Failed to finish writing: {}", e))?;
-    }
+    // Create RecordBatchIterator as per LanceDB 0.22.2 API
+    // Reference: https://docs.rs/lancedb/latest/lancedb/index.html
+    let batches = RecordBatchIterator::new(
+        vec![Ok(batch)].into_iter(),
+        schema.clone(),
+    );
     
-    // Read back the file as FileReader
-    let file = File::open(&temp_path)
-        .map_err(|e| format!("Failed to open temp file: {}", e))?;
-    let reader = arrow_ipc::reader::FileReader::try_new(file, None)
-        .map_err(|e| format!("Failed to create file reader: {}", e))?;
-    
-    // Import from FileReader
-    db.create_table(&table_name, reader)
+    // Create table with RecordBatchIterator - this works with Arrow 56.2!
+    db.create_table(&table_name, Box::new(batches))
         .execute()
         .await
         .map_err(|e| format!("Failed to create table: {}", e))?;
-    
-    // Clean up temp file
-    let _ = std::fs::remove_file(&temp_path);
 
     Ok(format!("Added {} chunks to table {}", chunks.len(), table_name))
 }
@@ -254,7 +237,7 @@ pub async fn vector_store_delete_document(
 
     let table_name = format!("doc_{}", document_id.replace(|c: char| !c.is_alphanumeric(), "_"));
 
-    db.drop_table(&table_name)
+    db.drop_table(&table_name, &[])
         .await
         .map_err(|e| format!("Failed to delete table: {}", e))?;
 
@@ -275,7 +258,7 @@ pub async fn vector_store_clear_all(storage_path: String) -> Result<String, Stri
         .map_err(|e| format!("Failed to list tables: {}", e))?;
 
     for table_name in table_names {
-        db.drop_table(&table_name)
+        db.drop_table(&table_name, &[])
             .await
             .map_err(|e| format!("Failed to delete table {}: {}", table_name, e))?;
     }
