@@ -66,4 +66,22 @@ export function buildPrompt(question: string, contexts: string[]): ChatMessage[]
   return [system, user];
 }
 
+/**
+ * List available Ollama models
+ * @param config Optional configuration for Ollama base URL
+ * @returns Array of model names
+ */
+export async function listOllamaModels(config?: { baseUrl?: string }): Promise<string[]> {
+  const baseUrl = (config?.baseUrl ?? 'http://127.0.0.1:11434').replace(/\/$/, '');
+  
+  try {
+    const { data } = await axios.get(`${baseUrl}/api/tags`);
+    const models = data?.models ?? [];
+    return models.map((model: any) => model.name);
+  } catch (e: any) {
+    console.error('[LLM] Failed to list Ollama models:', e?.message ?? 'unknown error');
+    return [];
+  }
+}
+
 

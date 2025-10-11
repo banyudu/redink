@@ -87,6 +87,13 @@ body {
   transition: all 0.2s ease-in-out;
 }
 
+/* Disable animations for select dropdown - instant appearance */
+[data-radix-select-content] {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
 /* Modern typography classes */
 .text-gradient {
   background: var(--gradient-primary);

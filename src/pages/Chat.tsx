@@ -4,11 +4,18 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { useAppStore } from "../store";
 import { generateFileId } from "../lib/utils";
 import { extractPdfFromPathWithMeta } from "../lib/pdf";
 import { hybridRAG, type HybridRagIndex } from "../lib/hybrid-rag";
-import { buildPrompt, chatComplete } from "../lib/llm";
+import { buildPrompt, chatComplete, listOllamaModels } from "../lib/llm";
 import { cacheManager } from "../lib/cache";
 import { PDFViewer } from "../components/PDFViewer";
 import { useNavigate } from "react-router-dom";
@@ -46,6 +53,8 @@ const Chat: React.FC = () => {
   const [meta, setMeta] = useState<{ pages: number; chars: number; hasSemanticIndex: boolean } | null>(null);
   const [leftWidth, setLeftWidth] = useState(50); // Percentage for left column
   const [isDragging, setIsDragging] = useState(false);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
   
   // Reference for chat messages container to enable auto-scroll
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -55,6 +64,32 @@ const Chat: React.FC = () => {
     const chat = chatHistory.find((c) => c.paperId === currentPaper);
     return chat?.messages ?? [];
   }, [chatHistory, currentPaper]);
+
+  // Fetch available Ollama models on mount
+  React.useEffect(() => {
+    const fetchModels = async () => {
+      setLoadingModels(true);
+      try {
+        console.log('[Chat] Fetching available Ollama models...');
+        const models = await listOllamaModels();
+        console.log('[Chat] Available models:', models);
+        setAvailableModels(models);
+        
+        // Set default model if current selection is empty or not in the list
+        if (models.length > 0 && (!selectedModel || !models.includes(selectedModel))) {
+          const defaultModel = models.find(m => m.includes('llama')) || models[0];
+          setSelectedModel(defaultModel);
+          console.log('[Chat] Set default model:', defaultModel);
+        }
+      } catch (error) {
+        console.error('[Chat] Failed to fetch Ollama models:', error);
+      } finally {
+        setLoadingModels(false);
+      }
+    };
+
+    fetchModels();
+  }, []); // Run only on mount
 
   const loadPdf = useCallback(async (pathToLoad: string) => {
     if (!pathToLoad) {
@@ -369,12 +404,32 @@ const Chat: React.FC = () => {
         {/* Model Configuration */}
         <div className="flex items-center gap-2">
           <Settings className="w-4 h-4 text-gray-400" />
-          <Input
-            placeholder="ollama model (e.g., llama3.2:latest)"
+          <Select
             value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="w-64 glass border-white/20 bg-white/10 backdrop-blur-xl text-sm"
-          />
+            onValueChange={setSelectedModel}
+            disabled={loadingModels}
+          >
+            <SelectTrigger className="w-64 h-10 glass border-white/20 bg-white/10 backdrop-blur-xl text-sm text-gray-900 dark:text-white hover:border-white/30 transition-colors">
+              <SelectValue placeholder={loadingModels ? "Loading models..." : "Select a model"} />
+            </SelectTrigger>
+            <SelectContent className="glass border-white/20 backdrop-blur-xl bg-white/95 dark:bg-gray-800/95 dark:text-white">
+              {availableModels.length === 0 && !loadingModels ? (
+                <SelectItem value="no-models" disabled className="dark:text-gray-400">
+                  No models available
+                </SelectItem>
+              ) : (
+                availableModels.map((model) => (
+                  <SelectItem 
+                    key={model} 
+                    value={model}
+                    className="cursor-pointer dark:focus:bg-gray-700 dark:text-white"
+                  >
+                    {model}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
