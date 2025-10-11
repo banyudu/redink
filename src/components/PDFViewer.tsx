@@ -32,26 +32,96 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileData, setFileData] = useState<Blob | null>(null);
+  
+  // Use refs to throttle zoom updates and prevent flickering
+  const pendingScaleRef = React.useRef<number | null>(null);
+  const rafIdRef = React.useRef<number | null>(null);
+  
   const pdfContainerRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
       // Use native event listener with passive: false to prevent default zoom
       const handleWheelNative = (e: WheelEvent) => {
+        // Check for zoom gestures: Ctrl/Cmd+wheel OR trackpad pinch (ctrlKey is set on macOS for pinch)
         if (e.ctrlKey || e.metaKey) {
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation(); // Prevent other handlers from firing
+          
+          // Calculate delta - for pinch gestures, deltaY will be larger
           const delta = -e.deltaY / 1000;
-          setScale(prev => {
-            const newScale = prev + delta;
-            return Math.max(0.5, Math.min(newScale, 3.0));
+          
+          // Accumulate scale changes and apply them in the next animation frame
+          // This prevents multiple re-renders during rapid wheel events
+          if (pendingScaleRef.current === null) {
+            pendingScaleRef.current = scale;
+          }
+          
+          pendingScaleRef.current = Math.max(0.5, Math.min(pendingScaleRef.current + delta, 3.0));
+          
+          // Cancel previous animation frame if it exists
+          if (rafIdRef.current !== null) {
+            cancelAnimationFrame(rafIdRef.current);
+          }
+          
+          // Schedule update for next animation frame
+          // This batches all zoom updates from rapid gestures into a single re-render
+          rafIdRef.current = requestAnimationFrame(() => {
+            if (pendingScaleRef.current !== null) {
+              setScale(pendingScaleRef.current);
+              pendingScaleRef.current = null;
+            }
+            rafIdRef.current = null;
           });
         }
       };
+      
+      // Also handle gesturestart/gesturechange/gestureend for Safari/WebKit
+      const handleGestureStart = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+      };
+      
+      const handleGestureChange = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const gestureEvent = e as any; // WebKit GestureEvent
+        if (gestureEvent.scale) {
+          if (pendingScaleRef.current === null) {
+            pendingScaleRef.current = scale;
+          }
+          
+          pendingScaleRef.current = Math.max(0.5, Math.min(scale * gestureEvent.scale, 3.0));
+          
+          if (rafIdRef.current !== null) {
+            cancelAnimationFrame(rafIdRef.current);
+          }
+          
+          rafIdRef.current = requestAnimationFrame(() => {
+            if (pendingScaleRef.current !== null) {
+              setScale(pendingScaleRef.current);
+              pendingScaleRef.current = null;
+            }
+            rafIdRef.current = null;
+          });
+        }
+      };
+      
       node.addEventListener('wheel', handleWheelNative, { passive: false });
+      node.addEventListener('gesturestart', handleGestureStart, { passive: false });
+      node.addEventListener('gesturechange', handleGestureChange, { passive: false });
+      
       return () => {
         node.removeEventListener('wheel', handleWheelNative);
+        node.removeEventListener('gesturestart', handleGestureStart);
+        node.removeEventListener('gesturechange', handleGestureChange);
+        // Clean up pending animation frame on unmount
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+        }
       };
     }
-  }, []);
+  }, [scale]);
 
   // Load file data when filePath changes
   useEffect(() => {
@@ -321,26 +391,31 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
                 </div>
               }
             >
-              {Array.from(new Array(totalPages), (_, index) => (
-                <div key={`page_${index + 1}`} className="bg-white">
-                  <Page
-                    pageNumber={index + 1}
-                    scale={scale}
-                    rotate={rotation}
-                    loading={
-                      <div className="flex items-center justify-center p-8">
-                        <Loader2 className="w-6 h-6 text-blue-500 animate-spin mr-2" />
-                        <span className="text-sm text-gray-600">Rendering page {index + 1}...</span>
-                      </div>
-                    }
-                    error={
-                      <div className="flex items-center justify-center p-8 text-red-600">
-                        <span className="text-sm">Failed to render page {index + 1}</span>
-                      </div>
-                    }
-                  />
-                </div>
-              ))}
+              {Array.from(new Array(totalPages), (_, index) => {
+                const pageNum = index + 1;
+                return (
+                  <div key={`page_${pageNum}`} className="bg-white shadow-md mb-2">
+                    <Page
+                      pageNumber={pageNum}
+                      scale={scale}
+                      rotate={rotation}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      loading={
+                        <div className="flex items-center justify-center p-8">
+                          <Loader2 className="w-6 h-6 text-blue-500 animate-spin mr-2" />
+                          <span className="text-sm text-gray-600">Rendering page {pageNum}...</span>
+                        </div>
+                      }
+                      error={
+                        <div className="flex items-center justify-center p-8 text-red-600">
+                          <span className="text-sm">Failed to render page {pageNum}</span>
+                        </div>
+                      }
+                    />
+                  </div>
+                );
+              })}
             </Document>
             );
           })()}

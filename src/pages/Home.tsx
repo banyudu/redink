@@ -25,11 +25,12 @@ import {
   Settings2,
   X,
   Check,
-  Trash2
+  Trash2,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { whisper } from "@/lib/utils";
+import { whisper, generateFileId } from "@/lib/utils";
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -54,6 +55,7 @@ export const Home: React.FC = () => {
   const [papersError, setPapersError] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showCategorySelector, setShowCategorySelector] = useState(false);
+  const [downloadedPapers, setDownloadedPapers] = useState<Set<string>>(new Set());
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load recent files, preferences, and initialize storage on mount
@@ -188,7 +190,7 @@ export const Home: React.FC = () => {
       
       // Add to recent files
       const recentFile: RecentFile = {
-        id: btoa(filePath).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16),
+        id: generateFileId(filePath),
         path: filePath,
         title: title || filePath.split('/').pop() || 'Untitled',
         lastAccessed: Date.now(),
@@ -289,6 +291,43 @@ export const Home: React.FC = () => {
     }
   }, [recentFiles, setRecentFiles]);
 
+  // Helper function to get paper file path
+  const getPaperFilePath = useCallback((paper: ArxivPaper): string => {
+    const storagePath = storageManager.getStoragePath();
+    if (!storagePath) return '';
+    
+    const sanitizedArxivId = paper.id.replace(/\//g, '_');
+    const sanitizedTitle = paper.title
+      .replace(/[<>:"/\\|?*]/g, '_')
+      .replace(/\s+/g, '_')
+      .replace(/_{2,}/g, '_')
+      .substring(0, 100)
+      .replace(/^_+|_+$/g, '');
+    const fileName = `${sanitizedArxivId}_${sanitizedTitle}.pdf`;
+    return `${storagePath}/${fileName}`;
+  }, []);
+
+  // Check if papers are already downloaded
+  const checkDownloadedPapers = useCallback(async (papers: ArxivPaper[]) => {
+    const { exists } = await import("@tauri-apps/plugin-fs");
+    const downloaded = new Set<string>();
+    
+    for (const paper of papers) {
+      const filePath = getPaperFilePath(paper);
+      if (filePath) {
+        try {
+          if (await exists(filePath)) {
+            downloaded.add(paper.id);
+          }
+        } catch (error) {
+          // File doesn't exist or error checking
+        }
+      }
+    }
+    
+    setDownloadedPapers(downloaded);
+  }, [getPaperFilePath]);
+
   // ArXiv paper download handler
   const handleArxivDownload = useCallback(async (paper: ArxivPaper) => {
     setDownloadingPaper(paper.id);
@@ -300,6 +339,9 @@ export const Home: React.FC = () => {
         paper.pdfUrl
       );
       
+      // Mark as downloaded
+      setDownloadedPapers(prev => new Set(prev).add(paper.id));
+      
       // Process the downloaded PDF and navigate to chat
       await processPdfFile(filePath);
       
@@ -309,7 +351,22 @@ export const Home: React.FC = () => {
     } finally {
       setDownloadingPaper(null);
     }
-  }, [processPdfFile]);
+  }, [processPdfFile, getPaperFilePath]);
+
+  // Handle continuing chat with an already-downloaded paper
+  const handleContinueChat = useCallback(async (paper: ArxivPaper) => {
+    const filePath = getPaperFilePath(paper);
+    if (filePath) {
+      await processPdfFile(filePath);
+    }
+  }, [getPaperFilePath, processPdfFile]);
+
+  // Check which papers are already downloaded whenever papers change
+  React.useEffect(() => {
+    if (filteredPapers.length > 0) {
+      checkDownloadedPapers(filteredPapers);
+    }
+  }, [filteredPapers, checkDownloadedPapers]);
 
   // Format file size helper
   const formatFileSize = (bytes: number): string => {
@@ -572,7 +629,7 @@ export const Home: React.FC = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleArxivDownload(paper)}
+                        onClick={() => downloadedPapers.has(paper.id) ? handleContinueChat(paper) : handleArxivDownload(paper)}
                         disabled={downloadingPaper === paper.id || loading}
                         className="text-xs h-7 px-3 glass border-white/20 bg-white/10 backdrop-blur-xl hover:bg-orange-50 dark:hover:bg-orange-900/30 disabled:opacity-50"
                       >
@@ -580,6 +637,11 @@ export const Home: React.FC = () => {
                           <>
                             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                             Downloading...
+                          </>
+                        ) : downloadedPapers.has(paper.id) ? (
+                          <>
+                            <MessageSquare className="w-3 h-3 mr-1" />
+                            Continue Chat
                           </>
                         ) : (
                           <>
@@ -829,7 +891,7 @@ export const Home: React.FC = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleArxivDownload(paper)}
+                        onClick={() => downloadedPapers.has(paper.id) ? handleContinueChat(paper) : handleArxivDownload(paper)}
                         disabled={downloadingPaper === paper.id || loading}
                         className="text-xs h-7 px-3 glass border-white/20 bg-white/10 backdrop-blur-xl hover:bg-orange-50 dark:hover:bg-orange-900/30 disabled:opacity-50"
                       >
@@ -837,6 +899,11 @@ export const Home: React.FC = () => {
                           <>
                             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                             Downloading...
+                          </>
+                        ) : downloadedPapers.has(paper.id) ? (
+                          <>
+                            <MessageSquare className="w-3 h-3 mr-1" />
+                            Continue Chat
                           </>
                         ) : (
                           <>

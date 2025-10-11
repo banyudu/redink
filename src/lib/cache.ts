@@ -1,4 +1,5 @@
 import { BaseDirectory, exists, readTextFile, writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
+import { generateFileId } from './utils';
 
 export interface RecentFile {
   id: string;
@@ -136,7 +137,7 @@ class CacheManager {
   }
 
   private generateId(path: string): string {
-    return btoa(path).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+    return generateFileId(path);
   }
 
   private extractFilename(path: string): string {

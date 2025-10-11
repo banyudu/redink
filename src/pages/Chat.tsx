@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useAppStore } from "../store";
+import { generateFileId } from "../lib/utils";
 import { extractPdfFromPathWithMeta } from "../lib/pdf";
 import { hybridRAG, type HybridRagIndex } from "../lib/hybrid-rag";
 import { buildPrompt, chatComplete } from "../lib/llm";
@@ -76,8 +77,8 @@ const Chat: React.FC = () => {
       
       console.log('[Chat] PDF extracted:', { pageCount, charCount, titleLength: title?.length });
       
-      // Generate document ID from path (stable identifier)
-      const documentId = btoa(pathToLoad).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+      // Generate document ID from path (stable identifier) using hash function
+      const documentId = generateFileId(pathToLoad);
       console.log('[Chat] Document ID:', documentId);
       
       // Build hybrid RAG index
@@ -150,7 +151,7 @@ const Chat: React.FC = () => {
       
       // Check if we need to load/reload the PDF
       // Generate documentId from path to compare with current index
-      const documentId = pathToLoad ? btoa(pathToLoad).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32) : null;
+      const documentId = pathToLoad ? generateFileId(pathToLoad) : null;
       // Load if: we have a path AND (no index OR index is for a different document)
       const needsLoad = pathToLoad && (!index || (index && documentId && index.documentId !== documentId));
       const shouldLoad = needsLoad && !loading && !autoLoading;
