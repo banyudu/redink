@@ -16,6 +16,7 @@ interface AppState {
   lastSelectedPdfPath: string | null;
   selectedModel: string;
   pdfViewerScale: number;
+  chatSeparatorPosition: number;
   recentFiles: RecentFile[];
   readingProgress: Record<string, ReadingProgress>;
   chatHistory: Array<{
@@ -33,6 +34,7 @@ interface AppState {
   setLastSelectedPdfPath: (path: string | null) => void;
   setSelectedModel: (model: string) => void;
   setPdfViewerScale: (scale: number) => void;
+  setChatSeparatorPosition: (position: number) => void;
   setRecentFiles: (files: RecentFile[]) => void;
   addRecentFile: (file: RecentFile) => void;
   removeRecentFile: (path: string) => void;
@@ -52,6 +54,7 @@ export const useAppStore = create<AppState>()(
       lastSelectedPdfPath: null,
       selectedModel: 'llama3.2:latest',
       pdfViewerScale: 1.0,
+      chatSeparatorPosition: 50,
       recentFiles: [],
       readingProgress: {},
       chatHistory: [],
@@ -61,6 +64,7 @@ export const useAppStore = create<AppState>()(
       setLastSelectedPdfPath: (path) => set({ lastSelectedPdfPath: path }),
       setSelectedModel: (model) => set({ selectedModel: model }),
       setPdfViewerScale: (scale) => set({ pdfViewerScale: scale }),
+      setChatSeparatorPosition: (position) => set({ chatSeparatorPosition: position }),
       setRecentFiles: (files) => set({ recentFiles: files }),
       addRecentFile: (file) => set((state) => {
         const existing = state.recentFiles.filter(f => f.id !== file.id);

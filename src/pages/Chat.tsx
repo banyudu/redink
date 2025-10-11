@@ -44,6 +44,8 @@ const Chat: React.FC = () => {
   const lastSelectedPdfPath = useAppStore((s) => s.lastSelectedPdfPath);
   const setLastSelectedPdfPath = useAppStore((s) => s.setLastSelectedPdfPath);
   const addRecentFile = useAppStore((s) => s.addRecentFile);
+  const chatSeparatorPosition = useAppStore((s) => s.chatSeparatorPosition);
+  const setChatSeparatorPosition = useAppStore((s) => s.setChatSeparatorPosition);
 
   const [loading, setLoading] = useState(false);
   const [autoLoading, setAutoLoading] = useState(false);
@@ -51,7 +53,7 @@ const Chat: React.FC = () => {
   const [index, setIndex] = useState<HybridRagIndex | null>(null);
   const [question, setQuestion] = useState("");
   const [meta, setMeta] = useState<{ pages: number; chars: number; hasSemanticIndex: boolean } | null>(null);
-  const [leftWidth, setLeftWidth] = useState(50); // Percentage for left column
+  const [leftWidth, setLeftWidth] = useState(chatSeparatorPosition); // Percentage for left column
   const [isDragging, setIsDragging] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -64,6 +66,11 @@ const Chat: React.FC = () => {
     const chat = chatHistory.find((c) => c.paperId === currentPaper);
     return chat?.messages ?? [];
   }, [chatHistory, currentPaper]);
+
+  // Sync local state with store when chatSeparatorPosition changes
+  React.useEffect(() => {
+    setLeftWidth(chatSeparatorPosition);
+  }, [chatSeparatorPosition]);
 
   // Fetch available Ollama models on mount
   React.useEffect(() => {
@@ -282,13 +289,17 @@ const Chat: React.FC = () => {
       const containerWidth = window.innerWidth - 48; // Account for padding
       const newLeftWidth = (e.clientX / containerWidth) * 100;
       // Clamp between 30% and 70%
-      setLeftWidth(Math.min(Math.max(newLeftWidth, 30), 70));
+      const clampedWidth = Math.min(Math.max(newLeftWidth, 30), 70);
+      setLeftWidth(clampedWidth);
     }
   }, [isDragging]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
-  }, []);
+    // Save the final position to store when drag ends
+    setChatSeparatorPosition(leftWidth);
+    console.log('[Chat] Saved separator position:', leftWidth);
+  }, [leftWidth, setChatSeparatorPosition]);
 
   // Add/remove mouse event listeners for dragging
   React.useEffect(() => {
