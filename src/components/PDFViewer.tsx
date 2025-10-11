@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { readFile } from '@tauri-apps/plugin-fs';
+import { useAppStore } from '@/store';
 
 // Configure PDF.js worker
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -26,8 +27,9 @@ interface PDFViewerProps {
 }
 
 export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }) => {
+  const { pdfViewerScale, setPdfViewerScale } = useAppStore();
   const [totalPages, setTotalPages] = useState(0);
-  const [scale, setScale] = useState(1.0);
+  const [scale, setScale] = useState(pdfViewerScale);
   const [rotation, setRotation] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +38,11 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   // Use refs to throttle zoom updates and prevent flickering
   const pendingScaleRef = React.useRef<number | null>(null);
   const rafIdRef = React.useRef<number | null>(null);
+  
+  // Persist scale changes to store
+  useEffect(() => {
+    setPdfViewerScale(scale);
+  }, [scale, setPdfViewerScale]);
   
   const pdfContainerRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
