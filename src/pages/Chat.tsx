@@ -1,4 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useAppStore } from "../store";
@@ -297,7 +300,7 @@ const Chat: React.FC = () => {
   if (autoLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-140px)] animate-fade-in">
-        <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center">
+        <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
           <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Loading Document</h3>
           <p className="text-gray-600 dark:text-gray-300">Processing your PDF for AI chat...</p>
@@ -309,8 +312,8 @@ const Chat: React.FC = () => {
   if (!currentPaper) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-140px)] animate-fade-in">
-        <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center max-w-md">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center max-w-md">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8 text-white" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Document Selected</h3>
@@ -343,7 +346,7 @@ const Chat: React.FC = () => {
           </Button>
           
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
               <MessageSquare className="w-4 h-4 text-white" />
             </div>
             <div>
@@ -397,7 +400,7 @@ const Chat: React.FC = () => {
           style={{ width: `${100 - leftWidth}%` }}
         >
           {/* Chat Messages Area */}
-          <div className="flex-1 glass rounded-2xl border border-white/20 backdrop-blur-xl overflow-hidden mb-4 flex flex-col min-h-0">
+          <div className="flex-1 glass rounded-lg border border-white/20 backdrop-blur-xl overflow-hidden mb-4 flex flex-col min-h-0">
             <div className="p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl flex-shrink-0">
               <h3 className="font-semibold text-gray-900 dark:text-white">AI Conversation</h3>
               <p className="text-sm text-gray-600 dark:text-gray-300">Ask questions about your research paper</p>
@@ -406,7 +409,7 @@ const Chat: React.FC = () => {
             <div className="flex-1 p-6 overflow-auto space-y-4 min-h-0">
                 {messages.length === 0 && index && (
                   <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
                       <MessageSquare className="w-8 h-8 text-white" />
                     </div>
                     <div>
@@ -438,7 +441,7 @@ const Chat: React.FC = () => {
                 {messages.map((m, i) => (
                   <div key={i} className={`flex items-start gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
                     {/* Avatar */}
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                       m.role === "user" 
                         ? "bg-gradient-to-br from-blue-500 to-purple-600" 
                         : "bg-gradient-to-br from-emerald-500 to-teal-600"
@@ -452,12 +455,23 @@ const Chat: React.FC = () => {
 
                     {/* Message */}
                     <div className={`max-w-[85%] ${m.role === "user" ? "items-end" : "items-start"} flex flex-col gap-1`}>
-                      <div className={`px-4 py-3 rounded-2xl shadow-sm animate-fade-in ${
+                      <div className={`px-4 py-3 rounded-lg shadow-sm animate-fade-in ${
                         m.role === "user"
                           ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-tr-lg"
                           : "glass border border-white/20 text-gray-900 dark:text-white rounded-tl-lg"
                       }`}>
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                        {m.role === "assistant" ? (
+                          <div className="markdown-content">
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              rehypePlugins={[rehypeHighlight]}
+                            >
+                              {m.content}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                        )}
                       </div>
                       <span className="text-xs text-gray-500 px-2">
                         {new Date(m.timestamp).toLocaleTimeString()}
@@ -468,10 +482,10 @@ const Chat: React.FC = () => {
 
                 {sending && (
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
                       <Bot className="w-4 h-4 text-white" />
                     </div>
-                    <div className="glass border border-white/20 px-4 py-3 rounded-2xl rounded-tl-lg">
+                    <div className="glass border border-white/20 px-4 py-3 rounded-lg rounded-tl-lg">
                       <div className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">Thinking...</span>
@@ -486,7 +500,7 @@ const Chat: React.FC = () => {
           </div>
 
           {/* Message Input */}
-          <div className="glass rounded-2xl p-4 border border-white/20 backdrop-blur-xl flex-shrink-0">
+          <div className="glass rounded-lg p-4 border border-white/20 backdrop-blur-xl flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="flex-1 relative">
                 <Input

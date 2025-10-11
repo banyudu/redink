@@ -6,10 +6,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "./ui/dropdown";
 import { useAppStore } from "../store";
-import { Moon, Sun, MessageSquare, FileText, Home, Settings } from "lucide-react";
+import { Moon, Sun, MessageSquare, Home, Settings } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const { t } = useTranslation();

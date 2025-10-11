@@ -3,7 +3,8 @@
  * Provides local, offline semantic embeddings for text chunks
  */
 
-import { pipeline, Pipeline, env } from '@xenova/transformers';
+import { pipeline, env } from '@xenova/transformers';
+import type { FeatureExtractionPipeline } from '@xenova/transformers';
 
 // Configure transformers.js to use local cache
 env.allowLocalModels = false; // Use remote models
@@ -15,7 +16,7 @@ const EMBEDDING_DIMENSION = 384; // all-MiniLM-L6-v2 produces 384-dimensional em
 
 export class EmbeddingService {
   private static instance: EmbeddingService;
-  private embedder: Pipeline | null = null;
+  private embedder: FeatureExtractionPipeline | null = null;
   private initPromise: Promise<void> | null = null;
   private isInitializing = false;
 

@@ -258,8 +258,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   if (!filePath) {
     return (
       <div className={`flex flex-col items-center justify-center h-full ${className}`}>
-        <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-gray-400 to-gray-500 rounded-lg flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8 text-white" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No PDF Loaded</h3>
@@ -270,11 +270,11 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   }
 
   return (
-    <div className={`flex flex-col h-full glass rounded-2xl border border-white/20 backdrop-blur-xl relative ${className}`}>
+    <div className={`flex flex-col h-full glass rounded-lg border border-white/20 backdrop-blur-xl relative ${className}`}>
       {/* Loading Overlay */}
       {loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl">
-          <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg">
+          <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
             <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Loading PDF</h3>
             <p className="text-gray-600 dark:text-gray-300">Processing your document...</p>
@@ -284,9 +284,9 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
 
       {/* Error Overlay */}
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl">
-          <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg">
+          <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-lg flex items-center justify-center mx-auto mb-4">
               <FileText className="w-8 h-8 text-white" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading PDF</h3>
@@ -298,7 +298,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
       {/* Toolbar */}
       <div className="flex items-center justify-between p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
             <FileText className="w-4 h-4 text-white" />
           </div>
           <span className="font-medium text-gray-900 dark:text-white text-sm">
@@ -394,7 +394,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
               {Array.from(new Array(totalPages), (_, index) => {
                 const pageNum = index + 1;
                 return (
-                  <div key={`page_${pageNum}`} className="bg-white shadow-md mb-2">
+                  <div key={`page_${pageNum}`} className="">
                     <Page
                       pageNumber={pageNum}
                       scale={scale}

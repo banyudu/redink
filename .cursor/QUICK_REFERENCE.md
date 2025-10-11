@@ -76,7 +76,7 @@ export const MyComponent: React.FC<MyComponentProps> = ({
   className
 }) => {
   return (
-    <div className={cn('p-4 rounded-lg', className)}>
+    <div className={cn('p-4 rounded-md', className)}>
       <h2 className="text-xl font-semibold">{title}</h2>
       {onAction && (
         <button onClick={onAction}>Action</button>

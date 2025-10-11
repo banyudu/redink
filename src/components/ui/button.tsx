@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:scale-105 active:scale-95",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:scale-105 active:scale-95",
   {
     variants: {
       variant: {
@@ -16,7 +16,7 @@ const buttonVariants = cva(
           "glass border border-white/20 bg-white/10 backdrop-blur-xl hover:bg-white/20 hover:border-white/40 text-gray-900 dark:text-white shadow-md hover:shadow-lg",
         secondary:
           "bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-900 shadow-md hover:shadow-lg border-0 dark:from-gray-800 dark:to-gray-700 dark:hover:from-gray-700 dark:hover:to-gray-600 dark:text-white",
-        ghost: "hover:bg-white/20 hover:backdrop-blur-xl hover:shadow-lg text-gray-700 dark:text-gray-300 dark:hover:text-white border-0 rounded-xl",
+        ghost: "hover:bg-white/20 hover:backdrop-blur-xl hover:shadow-lg text-gray-700 dark:text-gray-300 dark:hover:text-white border-0 rounded-lg",
         link: "underline-offset-4 hover:underline text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 border-0 hover:scale-100",
       },
       size: {

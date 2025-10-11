@@ -59,8 +59,8 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
 
   if (recentFiles.length === 0) {
     return (
-      <div className="glass rounded-2xl p-8 border border-white/20 backdrop-blur-xl text-center">
-        <div className="w-16 h-16 bg-gradient-to-br from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+      <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
+        <div className="w-16 h-16 bg-gradient-to-br from-gray-400 to-gray-500 rounded-lg flex items-center justify-center mx-auto mb-4">
           <File className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Recent Files</h3>
@@ -106,7 +106,7 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
             onMouseLeave={() => setHoveredFile(null)}
           >
             <div
-              className={`glass rounded-xl p-4 border backdrop-blur-xl cursor-pointer transition-all duration-300 ${
+              className={`glass rounded-lg p-4 border backdrop-blur-xl cursor-pointer transition-all duration-300 ${
                 hoveredFile === file.id
                   ? 'border-blue-500/50 bg-blue-50/50 dark:bg-blue-900/20 shadow-lg'
                   : 'border-white/20 hover:border-white/40 hover:bg-white/10'
@@ -123,7 +123,7 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
               <div className="relative z-10 flex items-center gap-3">
                 {/* File Icon */}
                 <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                     {getFileIcon(file)}
                   </div>
                 </div>
@@ -190,7 +190,7 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
 
               {/* Loading overlay */}
               {loading && (
-                <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                     <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                     Loading...
