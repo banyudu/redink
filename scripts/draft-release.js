@@ -61,7 +61,7 @@ rl.question(`Enter new version (current: ${currentVersion}): `, (newVersion) => 
   // Git operations
   try {
     console.log('\nCommitting changes...');
-    execSync('git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json', { stdio: 'inherit' });
+    execSync('git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json', { stdio: 'inherit' });
     execSync(`git commit -m "chore: bump version to ${newVersion}"`, { stdio: 'inherit' });
     console.log('✓ Committed version changes');
 
@@ -69,19 +69,21 @@ rl.question(`Enter new version (current: ${currentVersion}): `, (newVersion) => 
     execSync(`git tag -a v${newVersion} -m "Release v${newVersion}"`, { stdio: 'inherit' });
     console.log(`✓ Created tag v${newVersion}`);
 
-    console.log('\n✅ Version updated successfully!');
+    console.log('\nPushing changes and tags...');
+    execSync('git push --follow-tags', { stdio: 'inherit' });
+    console.log('✓ Pushed changes and tags to remote');
+
+    console.log('\n✅ Version updated and pushed successfully!');
     console.log('\nNext steps:');
-    console.log(`  1. Review the changes: git show v${newVersion}`);
-    console.log('  2. Push the changes: git push && git push --tags');
-    console.log('  3. GitHub Actions will automatically create a draft release');
-    console.log('  4. Review and publish the release on GitHub');
+    console.log('  1. GitHub Actions will automatically create a draft release');
+    console.log('  2. Review and publish the release on GitHub');
   } catch (error) {
     console.error('\n❌ Error during git operations:', error.message);
     console.log('\nYou can manually run:');
-    console.log('  git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json');
+    console.log('  git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json');
     console.log(`  git commit -m "chore: bump version to ${newVersion}"`);
     console.log(`  git tag -a v${newVersion} -m "Release v${newVersion}"`);
-    console.log('  git push && git push --tags');
+    console.log('  git push --follow-tags');
   }
 
   rl.close();
