@@ -186,6 +186,29 @@ Each release includes:
 }
 ```
 
+## Performance Optimizations
+
+The workflow includes several caching strategies to speed up builds:
+
+1. **Rust Cache** (`swatinem/rust-cache@v2`)
+   - Caches Cargo registry and build artifacts
+   - Typically reduces Rust compilation time by 50-70%
+   - Automatically invalidated when dependencies change
+
+2. **pnpm Store Cache** (`actions/cache@v4`)
+   - Caches node_modules and pnpm store
+   - Speeds up frontend dependency installation
+   - Uses lockfile hash for cache key
+
+3. **Node Cache** (built into `setup-node`)
+   - Caches npm/pnpm packages
+   - Additional layer of frontend caching
+
+**Expected Build Times:**
+- First build (no cache): ~15-20 minutes
+- Subsequent builds (with cache): ~5-10 minutes
+- Incremental builds: ~3-5 minutes
+
 ## Troubleshooting
 
 ### Build Failures
@@ -193,6 +216,11 @@ Each release includes:
 1. **Missing Dependencies**
    - Ensure all dependencies are installed: `pnpm install`
    - Check Rust toolchain is up to date
+
+2. **"Could not find `protoc`" Error**
+   - The workflow automatically installs protobuf
+   - For local builds on macOS: `brew install protobuf`
+   - For local builds on Ubuntu: `sudo apt-get install protobuf-compiler`
 
 2. **Signing Errors**
    - Verify `TAURI_SIGNING_PRIVATE_KEY` secret is set correctly

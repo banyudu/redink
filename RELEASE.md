@@ -34,6 +34,8 @@ This document provides a quick reference for creating releases of Redink.
 3. **Monitor the build**:
    - Visit: https://github.com/banyudu/redink/actions
    - Wait for the "Release" workflow to complete
+   - First build: ~15-20 minutes (building cache)
+   - Subsequent builds: ~5-10 minutes (using cache)
 
 4. **Publish the release**:
    - Visit: https://github.com/banyudu/redink/releases
@@ -69,6 +71,8 @@ Users will automatically be notified of new releases when they launch the app. T
 - Check workflow logs: https://github.com/banyudu/redink/actions
 - Ensure all secrets are set correctly
 - Verify version numbers are valid
+- For "Could not find protoc" error: Fixed automatically in workflow
+  - Local builds: `brew install protobuf` (macOS)
 
 ### Updates not working
 - Ensure public key in `tauri.conf.json` matches private key
