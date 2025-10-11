@@ -130,6 +130,8 @@ jobs:
     steps:
       - name: Publish Release
         uses: eregon/publish-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           release_id: ${{ needs.create-release.outputs.release_id }}
 
