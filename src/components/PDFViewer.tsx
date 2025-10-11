@@ -27,22 +27,121 @@ interface PDFViewerProps {
 }
 
 export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }) => {
-  const { pdfViewerScale, setPdfViewerScale } = useAppStore();
+  const { pdfViewerScale, setPdfViewerScale, setReadingProgress, getReadingProgress } = useAppStore();
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(pdfViewerScale);
   const [rotation, setRotation] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileData, setFileData] = useState<Blob | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Use refs to throttle zoom updates and prevent flickering
   const pendingScaleRef = React.useRef<number | null>(null);
   const rafIdRef = React.useRef<number | null>(null);
+  const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const saveProgressTimeoutRef = React.useRef<number | null>(null);
+  const hasRestoredProgressRef = React.useRef(false);
   
   // Persist scale changes to store
   useEffect(() => {
     setPdfViewerScale(scale);
   }, [scale, setPdfViewerScale]);
+
+  // Save reading progress (debounced)
+  const saveProgress = useCallback((scrollTop: number, scrollLeft: number, page: number) => {
+    if (!filePath) return;
+    
+    // Clear existing timeout
+    if (saveProgressTimeoutRef.current) {
+      clearTimeout(saveProgressTimeoutRef.current);
+    }
+    
+    // Debounce saving to avoid too frequent updates
+    saveProgressTimeoutRef.current = window.setTimeout(() => {
+      setReadingProgress(filePath, {
+        scrollTop,
+        scrollLeft,
+        currentPage: page,
+        lastUpdated: Date.now(),
+      });
+      console.log('[PDFViewer] Saved reading progress:', { scrollTop, scrollLeft, page });
+    }, 500);
+  }, [filePath, setReadingProgress]);
+
+  // Detect current visible page based on scroll position
+  const detectCurrentPage = useCallback((container: HTMLDivElement) => {
+    const pages = container.querySelectorAll('[data-page-number]');
+    const containerRect = container.getBoundingClientRect();
+    const containerCenter = containerRect.top + containerRect.height / 2;
+    
+    let closestPage = 1;
+    let closestDistance = Infinity;
+    
+    pages.forEach((pageElement) => {
+      const pageRect = pageElement.getBoundingClientRect();
+      const pageCenter = pageRect.top + pageRect.height / 2;
+      const distance = Math.abs(pageCenter - containerCenter);
+      
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        const pageNum = parseInt(pageElement.getAttribute('data-page-number') || '1', 10);
+        closestPage = pageNum;
+      }
+    });
+    
+    return closestPage;
+  }, []);
+
+  // Handle scroll events
+  const handleScroll = useCallback((e: Event) => {
+    const container = e.target as HTMLDivElement;
+    if (!container) return;
+    
+    const scrollTop = container.scrollTop;
+    const scrollLeft = container.scrollLeft;
+    const page = detectCurrentPage(container);
+    
+    setCurrentPage(page);
+    saveProgress(scrollTop, scrollLeft, page);
+  }, [detectCurrentPage, saveProgress]);
+
+  // Restore reading progress after PDF is loaded
+  useEffect(() => {
+    if (!scrollContainerRef.current || !filePath || totalPages === 0 || hasRestoredProgressRef.current) {
+      return;
+    }
+    
+    const savedProgress = getReadingProgress(filePath);
+    if (savedProgress) {
+      // Wait for all pages to render before restoring scroll
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = savedProgress.scrollTop;
+          scrollContainerRef.current.scrollLeft = savedProgress.scrollLeft;
+          setCurrentPage(savedProgress.currentPage);
+          hasRestoredProgressRef.current = true;
+          console.log('[PDFViewer] Restored reading progress:', savedProgress);
+        }
+      }, 100);
+    } else {
+      hasRestoredProgressRef.current = true;
+    }
+  }, [filePath, totalPages, getReadingProgress]);
+
+  // Reset hasRestored flag when file changes
+  useEffect(() => {
+    hasRestoredProgressRef.current = false;
+  }, [filePath]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveProgressTimeoutRef.current) {
+        clearTimeout(saveProgressTimeoutRef.current);
+      }
+    };
+  }, []);
   
   const pdfContainerRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
@@ -309,7 +408,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
             <FileText className="w-4 h-4 text-white" />
           </div>
           <span className="font-medium text-gray-900 dark:text-white text-sm">
-            PDF Viewer {totalPages > 0 && `(${totalPages} pages)`}
+            PDF Viewer {totalPages > 0 && `(Page ${currentPage} of ${totalPages})`}
           </span>
         </div>
 
@@ -369,7 +468,18 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
 
       {/* PDF Content */}
       <div 
-        ref={pdfContainerRef}
+        ref={(node) => {
+          pdfContainerRef(node);
+          scrollContainerRef.current = node;
+          
+          // Attach scroll event listener
+          if (node) {
+            node.addEventListener('scroll', handleScroll, { passive: true });
+            return () => {
+              node.removeEventListener('scroll', handleScroll);
+            };
+          }
+        }}
         className="flex-1 overflow-auto p-2 bg-gray-50 dark:bg-gray-900/50 custom-scrollbar"
       >
         <div className="flex flex-col items-center gap-2">
@@ -401,7 +511,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
               {Array.from(new Array(totalPages), (_, index) => {
                 const pageNum = index + 1;
                 return (
-                  <div key={`page_${pageNum}`} className="">
+                  <div key={`page_${pageNum}`} className="" data-page-number={pageNum}>
                     <Page
                       pageNumber={pageNum}
                       scale={scale}

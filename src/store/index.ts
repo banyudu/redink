@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { RecentFile } from '../lib/cache';
 
+export interface ReadingProgress {
+  scrollTop: number;
+  scrollLeft: number;
+  currentPage: number;
+  lastUpdated: number;
+}
+
 interface AppState {
   theme: 'light' | 'dark';
   language: 'en' | 'zh';
@@ -10,6 +17,7 @@ interface AppState {
   selectedModel: string;
   pdfViewerScale: number;
   recentFiles: RecentFile[];
+  readingProgress: Record<string, ReadingProgress>;
   chatHistory: Array<{
     id: string;
     paperId: string;
@@ -29,13 +37,15 @@ interface AppState {
   addRecentFile: (file: RecentFile) => void;
   removeRecentFile: (path: string) => void;
   clearRecentFiles: () => void;
+  setReadingProgress: (filePath: string, progress: ReadingProgress) => void;
+  getReadingProgress: (filePath: string) => ReadingProgress | null;
   addChatMessage: (paperId: string, role: 'user' | 'assistant', content: string) => void;
   clearChatHistory: (paperId: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       theme: 'light',
       language: 'en',
       currentPaper: null,
@@ -43,6 +53,7 @@ export const useAppStore = create<AppState>()(
       selectedModel: 'llama3.2:latest',
       pdfViewerScale: 1.0,
       recentFiles: [],
+      readingProgress: {},
       chatHistory: [],
       setTheme: (theme) => set({ theme }),
       setLanguage: (language) => set({ language }),
@@ -59,6 +70,17 @@ export const useAppStore = create<AppState>()(
         recentFiles: state.recentFiles.filter(f => f.path !== path)
       })),
       clearRecentFiles: () => set({ recentFiles: [] }),
+      setReadingProgress: (filePath, progress) =>
+        set((state) => ({
+          readingProgress: {
+            ...state.readingProgress,
+            [filePath]: progress,
+          },
+        })),
+      getReadingProgress: (filePath) => {
+        const state = get();
+        return state.readingProgress[filePath] || null;
+      },
       addChatMessage: (paperId, role, content) =>
         set((state) => {
           const chatIndex = state.chatHistory.findIndex((chat) => chat.paperId === paperId);
