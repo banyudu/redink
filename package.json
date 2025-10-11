@@ -1,11 +1,12 @@
 {
   "name": "redink",
   "private": true,
-  "version": "0.1.1-alpha.2",
+  "version": "0.1.1-alpha.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "version": "git add src-tauri/Cargo.toml",
     "postversion": "git push --follow-tags",
     "preview": "vite preview",
     "release:draft": "node scripts/draft-release.js",
