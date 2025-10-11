@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "postversion": "git push --follow-tags",
     "preview": "vite preview",
-    "tauri": "tauri",
     "release:draft": "node scripts/draft-release.js",
-    "release:publish": "node scripts/publish-release.js"
+    "release:publish": "node scripts/publish-release.js",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.0.5",
