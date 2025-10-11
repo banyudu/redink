@@ -46,13 +46,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # For Apple Silicon
+          - platform: 'macos-14' # macOS 14 (Sonoma) on Apple Silicon
             args: '--target aarch64-apple-darwin'
             arch: 'aarch64'
+            target: 'aarch64-apple-darwin'
             
-          - platform: 'macos-latest' # For Intel
+          - platform: 'macos-13' # macOS 13 (Ventura) on Intel
             args: '--target x86_64-apple-darwin'
             arch: 'x86_64'
+            target: 'x86_64-apple-darwin'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -71,8 +73,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -87,7 +88,7 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf protobuf-compiler
 
       - name: Install dependencies (macOS only)
-        if: matrix.platform == 'macos-latest'
+        if: startsWith(matrix.platform, 'macos-')
         run: |
           brew install protobuf
 
@@ -113,6 +114,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Disable AVX-512 for x86_64 builds (not available on GitHub Actions runners)
+          # Use AVX2 instead which is widely supported and still fast
+          RUSTFLAGS: ${{ matrix.arch == 'x86_64' && '-C target-cpu=haswell' || '' }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
