@@ -1,0 +1,85 @@
+name: Generate Updater Files
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  generate-updater-json:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get release data
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_DATA=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.event.release.tag_name }}")
+          
+          VERSION=$(echo "$RELEASE_DATA" | jq -r '.tag_name' | sed 's/^v//')
+          NOTES=$(echo "$RELEASE_DATA" | jq -r '.body')
+          PUB_DATE=$(echo "$RELEASE_DATA" | jq -r '.published_at')
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "pub_date=$PUB_DATE" >> $GITHUB_OUTPUT
+
+      - name: Download release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p assets
+          
+          # Get all assets from the release
+          curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.event.release.tag_name }}" \
+            | jq -r '.assets[] | select(.name | contains(".tar.gz.sig") or contains(".app.tar.gz")) | .browser_download_url' \
+            | xargs -n 1 curl -L -H "Authorization: token $GITHUB_TOKEN" -O -J
+
+      - name: Generate updater JSON
+        id: updater
+        run: |
+          # Find the signature files and corresponding archives
+          AARCH64_SIG=$(ls Redink_*_aarch64.app.tar.gz.sig 2>/dev/null | head -1)
+          AARCH64_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/$(basename ${AARCH64_SIG%.sig})"
+          AARCH64_SIGNATURE=$(cat "$AARCH64_SIG" 2>/dev/null || echo "")
+          
+          X86_64_SIG=$(ls Redink_*_x64.app.tar.gz.sig 2>/dev/null | head -1)
+          X86_64_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/$(basename ${X86_64_SIG%.sig})"
+          X86_64_SIGNATURE=$(cat "$X86_64_SIG" 2>/dev/null || echo "")
+          
+          # Create the JSON file
+          cat > latest.json << EOF
+          {
+            "version": "${{ steps.release.outputs.version }}",
+            "notes": "${{ steps.release.outputs.notes }}",
+            "pub_date": "${{ steps.release.outputs.pub_date }}",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "$AARCH64_SIGNATURE",
+                "url": "$AARCH64_URL"
+              },
+              "darwin-x86_64": {
+                "signature": "$X86_64_SIGNATURE",
+                "url": "$X86_64_URL"
+              }
+            }
+          }
+          EOF
+          
+          cat latest.json
+
+      - name: Upload updater JSON to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Upload the latest.json file to the release
+          gh release upload ${{ github.event.release.tag_name }} latest.json --clobber
+

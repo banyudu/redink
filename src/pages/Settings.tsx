@@ -1,6 +1,7 @@
 import React from "react";
 import { useAppStore } from "../store";
 import { Button } from "../components/ui/button";
+import { UpdateChecker } from "../components/UpdateChecker";
 import { 
   Settings as SettingsIcon, 
   Palette, 
@@ -11,7 +12,8 @@ import {
   Sun, 
   Monitor,
   Check,
-  ChevronRight
+  ChevronRight,
+  Download
 } from "lucide-react";
 
 export const Settings: React.FC = () => {
@@ -210,6 +212,33 @@ export const Settings: React.FC = () => {
               Clear cache, export data, and manage storage preferences.
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* App Updates Section */}
+      <div className="glass rounded-lg p-6 border border-white/20 backdrop-blur-xl">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <Download className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">App Updates</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300">Keep your app up to date with the latest features</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-lg border border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-900 dark:text-white">Current Version</span>
+              <span className="text-sm text-gray-600 dark:text-gray-300 font-mono">v0.1.0</span>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              The app automatically checks for updates every 6 hours, or you can check manually below.
+            </p>
+          </div>
+
+          <UpdateChecker />
         </div>
       </div>
 

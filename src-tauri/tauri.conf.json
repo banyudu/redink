@@ -44,6 +44,14 @@
     },
     "sql": {
       "enabled": true
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/banyudu/redink/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "+B9lMnK0PRBSBKI+G6+0EMxSnP9fDy7pXPvJZnrspBw="
     }
   }
 }

@@ -6,6 +6,7 @@ import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Chat } from './pages/Chat';
 import { Settings } from './pages/Settings';
+import { scheduleUpdateChecks } from './lib/updater';
 import './i18n';
 
 function App() {
@@ -18,6 +19,12 @@ function App() {
       document.documentElement.classList.toggle('dark', theme === 'dark');
     }
   }, [language, i18n, theme]);
+
+  // Schedule periodic update checks (every 6 hours)
+  React.useEffect(() => {
+    const cleanup = scheduleUpdateChecks(6 * 60 * 60 * 1000);
+    return cleanup;
+  }, []);
 
   return (
     <Router>
