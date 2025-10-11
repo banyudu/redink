@@ -15,6 +15,7 @@ jobs:
       release_id: ${{ steps.create-release.outputs.result }}
       release_upload_url: ${{ steps.create-release.outputs.upload_url }}
       release_body: "${{ steps.tag.outputs.release_body }}"
+      tag: ${{ steps.tag.outputs.tag }}
 
     steps:
       - uses: actions/checkout@v4
@@ -128,10 +129,11 @@ jobs:
     needs: [create-release, build-tauri]
 
     steps:
+      - uses: actions/checkout@v4
+      
       - name: Publish Release
-        uses: eregon/publish-release@v1
+        run: |
+          gh release edit ${{ needs.create-release.outputs.tag }} --draft=false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          release_id: ${{ needs.create-release.outputs.release_id }}
 
