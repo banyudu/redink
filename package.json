@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "version": "git add src-tauri/Cargo.toml",
+    "version": "git add src-tauri/Cargo.toml src-tauri/Cargo.lock",
     "postversion": "git push --follow-tags",
     "preview": "vite preview",
     "release:draft": "node scripts/draft-release.js",
