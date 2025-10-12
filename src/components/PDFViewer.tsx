@@ -12,6 +12,12 @@ import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { readFile } from '@tauri-apps/plugin-fs';
 import { useAppStore } from '@/store';
+import { useNavigate } from 'react-router-dom';
+import { extractPdfFromPathWithMeta } from '@/lib/pdf';
+import { storageManager } from '@/lib/storage';
+import { getPaperById } from '@/lib/arxiv';
+import { generateFileId } from '@/lib/utils';
+import type { RecentFile } from '@/lib/cache';
 
 // Configure PDF.js worker
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -27,8 +33,33 @@ interface PDFViewerProps {
   className?: string;
 }
 
+/**
+ * Extract arXiv ID from various formats:
+ * - URL: https://arxiv.org/abs/2506.17113
+ * - URL: https://arxiv.org/pdf/2506.17113.pdf
+ * - Text: arXiv:2506.17113
+ * - Text with version: arXiv:2506.17113v1
+ * - Old format: arXiv:physics/0110044
+ */
+function extractArxivId(text: string): string | null {
+  // Match arxiv.org URLs
+  const urlMatch = text.match(/arxiv\.org\/(?:abs|pdf)\/([a-zA-Z-]+\/\d+|\d+\.\d+)(?:v\d+)?(?:\.pdf)?/i);
+  if (urlMatch) {
+    return urlMatch[1];
+  }
+  
+  // Match arXiv:ID format in text
+  const textMatch = text.match(/arxiv:\s*([a-zA-Z-]+\/\d+|\d+\.\d+)(?:v\d+)?/i);
+  if (textMatch) {
+    return textMatch[1];
+  }
+  
+  return null;
+}
+
 export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }) => {
-  const { pdfViewerScale, setPdfViewerScale, setReadingProgress, getReadingProgress } = useAppStore();
+  const navigate = useNavigate();
+  const { pdfViewerScale, setPdfViewerScale, setReadingProgress, getReadingProgress, addRecentFile, setCurrentPaper, setLastSelectedPdfPath } = useAppStore();
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(pdfViewerScale);
   const [rotation, setRotation] = useState(0);
@@ -36,6 +67,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   const [error, setError] = useState<string | null>(null);
   const [fileData, setFileData] = useState<Blob | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [downloadingArxiv, setDownloadingArxiv] = useState(false);
   
   // Use refs to throttle zoom updates and prevent flickering
   const pendingScaleRef = React.useRef<number | null>(null);
@@ -43,6 +75,87 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
   const saveProgressTimeoutRef = React.useRef<number | null>(null);
   const hasRestoredProgressRef = React.useRef(false);
+  
+  // Handle arXiv paper click
+  const handleArxivPaperClick = useCallback(async (arxivId: string) => {
+    if (downloadingArxiv) {
+      console.log('[PDFViewer] Already downloading a paper, ignoring click');
+      return;
+    }
+
+    setDownloadingArxiv(true);
+    console.log('[PDFViewer] Fetching arXiv paper:', arxivId);
+    
+    try {
+      // First, check if paper already exists
+      await storageManager.initialize();
+      const storagePath = storageManager.getStoragePath();
+      
+      if (storagePath) {
+        const { exists } = await import('@tauri-apps/plugin-fs');
+        const sanitizedArxivId = arxivId.replace(/\//g, '_');
+        
+        // Try to find existing file
+        // Note: We don't have the full filename, so we'll need to fetch paper info first
+        const paper = await getPaperById(arxivId);
+        
+        if (!paper) {
+          throw new Error(`Paper ${arxivId} not found on arXiv`);
+        }
+        
+        const sanitizedTitle = paper.title
+          .replace(/[<>:"/\\|?*]/g, '_')
+          .replace(/\s+/g, '_')
+          .replace(/_{2,}/g, '_')
+          .substring(0, 100)
+          .replace(/^_+|_+$/g, '');
+        const fileName = `${sanitizedArxivId}_${sanitizedTitle}.pdf`;
+        const paperPath = `${storagePath}/${fileName}`;
+        
+        let finalPath = paperPath;
+        
+        // Check if paper is already downloaded
+        if (!(await exists(paperPath))) {
+          // Download paper
+          console.log('[PDFViewer] Downloading paper:', paper.title);
+          finalPath = await storageManager.downloadArxivPaper(
+            paper.id,
+            paper.title,
+            paper.pdfUrl
+          );
+        } else {
+          console.log('[PDFViewer] Paper already exists:', paperPath);
+        }
+        
+        // Process PDF and open it
+        const result = await extractPdfFromPathWithMeta(finalPath);
+        const { title, pageCount, fileSize } = result;
+        
+        // Add to recent files
+        const recentFile: RecentFile = {
+          id: generateFileId(finalPath),
+          path: finalPath,
+          title: title || paper.title,
+          lastAccessed: Date.now(),
+          addedDate: Date.now(),
+          pageCount,
+          fileSize
+        };
+        
+        addRecentFile(recentFile);
+        setCurrentPaper(finalPath); // Set the path, not the ID
+        setLastSelectedPdfPath(finalPath);
+        
+        // Navigate to chat - the Chat page will use the path to load the PDF
+        navigate('/chat');
+      }
+    } catch (error: any) {
+      console.error('[PDFViewer] Failed to open arXiv paper:', error);
+      alert(`Failed to open paper: ${error?.message ?? 'Unknown error'}`);
+    } finally {
+      setDownloadingArxiv(false);
+    }
+  }, [downloadingArxiv, navigate, addRecentFile, setCurrentPaper, setLastSelectedPdfPath]);
   
   // Persist scale changes to store
   useEffect(() => {
@@ -143,6 +256,200 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
       }
     };
   }, []);
+  
+  // Handle PDF link clicks and make arXiv references clickable
+  useEffect(() => {
+    if (!scrollContainerRef.current) return;
+    
+    const container = scrollContainerRef.current;
+    
+    // Handle clicks on annotation layer links (actual PDF links)
+    const handleAnnotationClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Check if clicked element is a link in the annotation layer
+      const link = target.closest('a') as HTMLAnchorElement;
+      if (link && link.href) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const arxivId = extractArxivId(link.href);
+        if (arxivId) {
+          console.log('[PDFViewer] Clicked arXiv link:', arxivId);
+          handleArxivPaperClick(arxivId);
+        } else {
+          console.log('[PDFViewer] Blocked non-arXiv link:', link.href);
+        }
+      }
+    };
+    
+    // Handle clicks on text layer to detect arXiv references
+    const handleTextLayerClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Check if clicked on a span within text content
+      if (target.tagName === 'SPAN' && target.closest('.react-pdf__Page__textContent')) {
+        // Try to get arXiv ID from the span itself
+        let text = target.textContent || '';
+        let arxivId = extractArxivId(text);
+        
+        // If not found, try combining with adjacent siblings (text might be split across spans)
+        if (!arxivId) {
+          const prevSibling = target.previousElementSibling;
+          const nextSibling = target.nextElementSibling;
+          
+          // Try combining with previous span
+          if (prevSibling) {
+            const combinedText = (prevSibling.textContent || '') + text;
+            arxivId = extractArxivId(combinedText);
+          }
+          
+          // Try combining with next span
+          if (!arxivId && nextSibling) {
+            const combinedText = text + (nextSibling.textContent || '');
+            arxivId = extractArxivId(combinedText);
+          }
+          
+          // Try combining with both
+          if (!arxivId && prevSibling && nextSibling) {
+            const combinedText = (prevSibling.textContent || '') + text + (nextSibling.textContent || '');
+            arxivId = extractArxivId(combinedText);
+          }
+        }
+        
+        if (arxivId) {
+          console.log('[PDFViewer] Clicked arXiv reference in text:', arxivId);
+          handleArxivPaperClick(arxivId);
+        }
+      }
+    };
+    
+    // Style links and arXiv references in PDF
+    const styleArxivReferences = () => {
+      // Style annotation layer links (actual PDF links)
+      const allLinks = container.querySelectorAll('a');
+      allLinks.forEach((link) => {
+        const href = (link as HTMLAnchorElement).href;
+        const arxivId = extractArxivId(href);
+        
+        if (arxivId) {
+          // This is an arXiv link - style it prominently
+          link.classList.add('arxiv-link');
+          (link as HTMLElement).style.color = '#2563eb'; // blue-600
+          (link as HTMLElement).style.textDecoration = 'underline';
+          (link as HTMLElement).style.cursor = 'pointer';
+          (link as HTMLElement).title = 'Click to open this arXiv paper';
+          console.log('[PDFViewer] Styled arXiv link:', arxivId);
+        } else {
+          // Non-arXiv link - remove link styling
+          link.classList.add('non-arxiv-link');
+          (link as HTMLElement).style.color = 'inherit';
+          (link as HTMLElement).style.textDecoration = 'none';
+          (link as HTMLElement).style.cursor = 'default';
+          (link as HTMLElement).title = 'External links are disabled';
+          console.log('[PDFViewer] Removed styling from non-arXiv link:', href);
+        }
+      });
+      
+      // Style text spans that contain arXiv references
+      const textSpans = container.querySelectorAll('.react-pdf__Page__textContent span');
+      const styledSpans = new Set<HTMLElement>();
+      
+      textSpans.forEach((span) => {
+        if (styledSpans.has(span as HTMLElement)) return;
+        
+        const text = span.textContent || '';
+        let hasArxiv = extractArxivId(text);
+        
+        // Check adjacent spans (arXiv ID might be split)
+        const nextSibling = span.nextElementSibling;
+        if (!hasArxiv && nextSibling) {
+          const combinedText = text + (nextSibling.textContent || '');
+          hasArxiv = extractArxivId(combinedText);
+          
+          if (hasArxiv) {
+            // Style both spans
+            (span as HTMLElement).classList.add('arxiv-text-ref');
+            (span as HTMLElement).style.cursor = 'pointer';
+            (span as HTMLElement).style.textDecoration = 'underline';
+            (span as HTMLElement).style.color = '#2563eb !important'; // blue-600
+            (span as HTMLElement).title = 'Click to open this arXiv paper';
+            (nextSibling as HTMLElement).classList.add('arxiv-text-ref');
+            (nextSibling as HTMLElement).style.cursor = 'pointer';
+            (nextSibling as HTMLElement).style.textDecoration = 'underline';
+            (nextSibling as HTMLElement).style.color = '#2563eb !important'; // blue-600
+            (nextSibling as HTMLElement).title = 'Click to open this arXiv paper';
+            styledSpans.add(span as HTMLElement);
+            styledSpans.add(nextSibling as HTMLElement);
+            console.log('[PDFViewer] Styled arXiv text reference:', combinedText.substring(0, 50));
+          }
+        }
+        
+        // Style single span if it contains arXiv reference
+        if (hasArxiv && !styledSpans.has(span as HTMLElement)) {
+          (span as HTMLElement).classList.add('arxiv-text-ref');
+          (span as HTMLElement).style.cursor = 'pointer';
+          (span as HTMLElement).style.textDecoration = 'underline';
+          (span as HTMLElement).style.color = '#2563eb !important'; // blue-600
+          (span as HTMLElement).title = 'Click to open this arXiv paper';
+          styledSpans.add(span as HTMLElement);
+          console.log('[PDFViewer] Styled arXiv text reference:', text.substring(0, 50));
+        }
+      });
+    };
+    
+    // Apply styling multiple times to catch all elements as they render
+    const styleTimeout1 = setTimeout(styleArxivReferences, 300);
+    const styleTimeout2 = setTimeout(styleArxivReferences, 800);
+    const styleTimeout3 = setTimeout(styleArxivReferences, 1500);
+    
+    // Use MutationObserver to detect when new pages are rendered and re-apply styling
+    const observer = new MutationObserver((mutations) => {
+      let shouldRestyle = false;
+      
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          // Check if any added node contains text layer or annotation layer
+          const hasRelevantLayer = Array.from(mutation.addedNodes).some((node) => {
+            if (node instanceof Element) {
+              return node.classList.contains('react-pdf__Page__textContent') || 
+                     node.querySelector('.react-pdf__Page__textContent') ||
+                     node.classList.contains('react-pdf__Page__annotations') ||
+                     node.querySelector('.react-pdf__Page__annotations') ||
+                     node.tagName === 'A';
+            }
+            return false;
+          });
+          
+          if (hasRelevantLayer) {
+            shouldRestyle = true;
+          }
+        }
+      }
+      
+      if (shouldRestyle) {
+        // Delay styling to ensure layers are fully rendered
+        setTimeout(styleArxivReferences, 200);
+      }
+    });
+    
+    observer.observe(container, {
+      childList: true,
+      subtree: true
+    });
+    
+    container.addEventListener('click', handleAnnotationClick, true);
+    container.addEventListener('click', handleTextLayerClick);
+    
+    return () => {
+      container.removeEventListener('click', handleAnnotationClick, true);
+      container.removeEventListener('click', handleTextLayerClick);
+      clearTimeout(styleTimeout1);
+      clearTimeout(styleTimeout2);
+      clearTimeout(styleTimeout3);
+      observer.disconnect();
+    };
+  }, [scrollContainerRef.current, handleArxivPaperClick, totalPages]);
   
   const pdfContainerRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
@@ -385,6 +692,17 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
             <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Loading PDF</h3>
             <p className="text-gray-600 dark:text-gray-300">Processing your document...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Downloading ArXiv Paper Overlay */}
+      {downloadingArxiv && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg">
+          <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
+            <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Opening ArXiv Paper</h3>
+            <p className="text-gray-600 dark:text-gray-300">Downloading and opening the referenced paper...</p>
           </div>
         </div>
       )}

@@ -165,6 +165,48 @@ body {
   user-select: text;
 }
 
+/* ArXiv link styling in PDF annotation layer */
+a.arxiv-link {
+  color: #2563eb !important; /* blue-600 */
+  text-decoration: underline !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease;
+}
+
+a.arxiv-link:hover {
+  color: #1d4ed8 !important; /* blue-700 */
+  background-color: rgba(37, 99, 235, 0.1);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+/* Non-arXiv links - disable styling */
+a.non-arxiv-link {
+  color: inherit !important;
+  text-decoration: none !important;
+  cursor: default !important;
+  pointer-events: auto; /* Still allow click event for blocking */
+}
+
+a.non-arxiv-link:hover {
+  opacity: 0.6;
+}
+
+/* ArXiv reference styling in PDF text layer */
+.react-pdf__Page__textContent span.arxiv-text-ref {
+  color: #2563eb !important; /* blue-600 */
+  text-decoration: underline !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease;
+}
+
+.react-pdf__Page__textContent span.arxiv-text-ref:hover {
+  color: #1d4ed8 !important; /* blue-700 */
+  background-color: rgba(37, 99, 235, 0.1);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
 /* Loading and error states */
 .react-pdf__message {
   display: flex;
