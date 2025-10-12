@@ -13,11 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { readFile } from '@tauri-apps/plugin-fs';
 import { useAppStore } from '@/store';
 import { useNavigate } from 'react-router-dom';
-import { extractPdfFromPathWithMeta } from '@/lib/pdf';
-import { storageManager } from '@/lib/storage';
-import { getPaperById } from '@/lib/arxiv';
-import { generateFileId } from '@/lib/utils';
-import type { RecentFile } from '@/lib/cache';
+import { openArxivPaper } from '@/lib/pdf-opener';
 
 // Configure PDF.js worker
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -83,77 +79,21 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
       return;
     }
 
-    setDownloadingArxiv(true);
-    console.log('[PDFViewer] Fetching arXiv paper:', arxivId);
-    
     try {
-      // First, check if paper already exists
-      await storageManager.initialize();
-      const storagePath = storageManager.getStoragePath();
-      
-      if (storagePath) {
-        const { exists } = await import('@tauri-apps/plugin-fs');
-        const sanitizedArxivId = arxivId.replace(/\//g, '_');
-        
-        // Try to find existing file
-        // Note: We don't have the full filename, so we'll need to fetch paper info first
-        const paper = await getPaperById(arxivId);
-        
-        if (!paper) {
-          throw new Error(`Paper ${arxivId} not found on arXiv`);
+      await openArxivPaper(arxivId, {
+        addRecentFile,
+        setCurrentPaper,
+        setLastSelectedPdfPath,
+        navigate,
+        onStart: () => setDownloadingArxiv(true),
+        onComplete: () => setDownloadingArxiv(false),
+        onError: (error) => {
+          setDownloadingArxiv(false);
+          alert(`Failed to open paper: ${error.message ?? 'Unknown error'}`);
         }
-        
-        const sanitizedTitle = paper.title
-          .replace(/[<>:"/\\|?*]/g, '_')
-          .replace(/\s+/g, '_')
-          .replace(/_{2,}/g, '_')
-          .substring(0, 100)
-          .replace(/^_+|_+$/g, '');
-        const fileName = `${sanitizedArxivId}_${sanitizedTitle}.pdf`;
-        const paperPath = `${storagePath}/${fileName}`;
-        
-        let finalPath = paperPath;
-        
-        // Check if paper is already downloaded
-        if (!(await exists(paperPath))) {
-          // Download paper
-          console.log('[PDFViewer] Downloading paper:', paper.title);
-          finalPath = await storageManager.downloadArxivPaper(
-            paper.id,
-            paper.title,
-            paper.pdfUrl
-          );
-        } else {
-          console.log('[PDFViewer] Paper already exists:', paperPath);
-        }
-        
-        // Process PDF and open it
-        const result = await extractPdfFromPathWithMeta(finalPath);
-        const { title, pageCount, fileSize } = result;
-        
-        // Add to recent files
-        const recentFile: RecentFile = {
-          id: generateFileId(finalPath),
-          path: finalPath,
-          title: title || paper.title,
-          lastAccessed: Date.now(),
-          addedDate: Date.now(),
-          pageCount,
-          fileSize
-        };
-        
-        addRecentFile(recentFile);
-        setCurrentPaper(finalPath); // Set the path, not the ID
-        setLastSelectedPdfPath(finalPath);
-        
-        // Navigate to chat - the Chat page will use the path to load the PDF
-        navigate('/chat');
-      }
-    } catch (error: any) {
-      console.error('[PDFViewer] Failed to open arXiv paper:', error);
-      alert(`Failed to open paper: ${error?.message ?? 'Unknown error'}`);
-    } finally {
-      setDownloadingArxiv(false);
+      });
+    } catch (error) {
+      // Error already handled in onError callback
     }
   }, [downloadingArxiv, navigate, addRecentFile, setCurrentPaper, setLastSelectedPdfPath]);
   

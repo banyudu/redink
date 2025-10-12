@@ -1,10 +1,9 @@
 import React, { useCallback, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../store";
-import { extractPdfFromPathWithMeta } from "../lib/pdf";
-import { cacheManager } from "../lib/cache";
+import { openPdfByPath, openArxivPaperFromObject } from "../lib/pdf-opener";
+import { cacheManager, type RecentFile } from "../lib/cache";
 import { storageManager } from "../lib/storage";
-import type { RecentFile } from "../lib/cache";
 import { 
   searchArxivPapersCached,
   getPapersByCategoriesCached,
@@ -31,7 +30,7 @@ import {
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
-import { whisper, generateFileId } from "@/lib/utils";
+import { whisper } from "@/lib/utils";
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -181,39 +180,30 @@ export const Home: React.FC = () => {
 
   // Process PDF file and navigate to chat
   const processPdfFile = useCallback(async (filePath: string) => {
-    whisper('filePath is: ', filePath)
-    setLoading(true);
-    setLoadingFile(filePath);
+    whisper('filePath is: ', filePath);
     
     try {
-      const result = await extractPdfFromPathWithMeta(filePath);
-      const { title, pageCount, fileSize } = result;
-      
-      // Add to recent files
-      const recentFile: RecentFile = {
-        id: generateFileId(filePath),
-        path: filePath,
-        title: title || filePath.split('/').pop() || 'Untitled',
-        lastAccessed: Date.now(),
-        addedDate: Date.now(),
-        pageCount,
-        fileSize
-      };
-      
-      await cacheManager.addRecentFile(filePath, recentFile.title, { pageCount, fileSize });
-      addRecentFile(recentFile);
-      
-      // Set current paper and navigate
-      setCurrentPaper(filePath);
-      setLastSelectedPdfPath(filePath);
-      navigate('/chat');
-      
-    } catch (err: any) {
-      console.error('Failed to process PDF:', err);
-      alert(`Failed to load PDF: ${err?.message ?? String(err)}`);
-    } finally {
-      setLoading(false);
-      setLoadingFile(null);
+      await openPdfByPath(filePath, {
+        addRecentFile,
+        setCurrentPaper,
+        setLastSelectedPdfPath,
+        navigate,
+        onStart: () => {
+          setLoading(true);
+          setLoadingFile(filePath);
+        },
+        onComplete: () => {
+          setLoading(false);
+          setLoadingFile(null);
+        },
+        onError: (err) => {
+          setLoading(false);
+          setLoadingFile(null);
+          alert(`Failed to load PDF: ${err.message ?? String(err)}`);
+        }
+      });
+    } catch (err) {
+      // Error already handled in onError callback
     }
   }, [navigate, setCurrentPaper, setLastSelectedPdfPath, addRecentFile]);
 
@@ -331,28 +321,27 @@ export const Home: React.FC = () => {
 
   // ArXiv paper download handler
   const handleArxivDownload = useCallback(async (paper: ArxivPaper) => {
-    setDownloadingPaper(paper.id);
-    
     try {
-      const filePath = await storageManager.downloadArxivPaper(
-        paper.id,
-        paper.title,
-        paper.pdfUrl
-      );
-      
-      // Mark as downloaded
-      setDownloadedPapers(prev => new Set(prev).add(paper.id));
-      
-      // Process the downloaded PDF and navigate to chat
-      await processPdfFile(filePath);
-      
-    } catch (error: any) {
-      console.error('Failed to download arXiv paper:', error);
-      alert(`Failed to download paper: ${error?.message ?? 'Unknown error'}`);
-    } finally {
-      setDownloadingPaper(null);
+      await openArxivPaperFromObject(paper, {
+        addRecentFile,
+        setCurrentPaper,
+        setLastSelectedPdfPath,
+        navigate,
+        onStart: () => setDownloadingPaper(paper.id),
+        onComplete: () => {
+          setDownloadingPaper(null);
+          // Mark as downloaded
+          setDownloadedPapers(prev => new Set(prev).add(paper.id));
+        },
+        onError: (error) => {
+          setDownloadingPaper(null);
+          alert(`Failed to download paper: ${error.message ?? 'Unknown error'}`);
+        }
+      });
+    } catch (error) {
+      // Error already handled in onError callback
     }
-  }, [processPdfFile, getPaperFilePath]);
+  }, [navigate, setCurrentPaper, setLastSelectedPdfPath, addRecentFile]);
 
   // Handle continuing chat with an already-downloaded paper
   const handleContinueChat = useCallback(async (paper: ArxivPaper) => {

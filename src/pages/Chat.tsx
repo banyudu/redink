@@ -45,6 +45,7 @@ const Chat: React.FC = () => {
   const lastSelectedPdfPath = useAppStore((s) => s.lastSelectedPdfPath);
   const setLastSelectedPdfPath = useAppStore((s) => s.setLastSelectedPdfPath);
   const addRecentFile = useAppStore((s) => s.addRecentFile);
+  const recentFiles = useAppStore((s) => s.recentFiles);
   const chatSeparatorPosition = useAppStore((s) => s.chatSeparatorPosition);
   const setChatSeparatorPosition = useAppStore((s) => s.setChatSeparatorPosition);
 
@@ -99,7 +100,7 @@ const Chat: React.FC = () => {
     fetchModels();
   }, []); // Run only on mount
 
-  const loadPdf = useCallback(async (pathToLoad: string) => {
+  const loadPdf = useCallback(async (pathToLoad: string, existingTitle?: string) => {
     if (!pathToLoad) {
       console.error('[Chat] No path provided to loadPdf');
       return;
@@ -152,11 +153,14 @@ const Chat: React.FC = () => {
         pdfPath: pathToLoad
       });
       
+      // Use existing title if provided, otherwise use extracted title, then fallback to filename
+      const preferredTitle = existingTitle || title || pathToLoad.split('/').pop() || 'Untitled';
+      
       // Add to recent files cache
       const recentFile = {
         id: documentId,
         path: pathToLoad, // This is the actual PDF path
-        title: title || pathToLoad.split('/').pop() || 'Untitled',
+        title: preferredTitle,
         lastAccessed: Date.now(),
         addedDate: Date.now(),
         pageCount,
@@ -218,7 +222,9 @@ const Chat: React.FC = () => {
           const fileExists = await checkFileExists(pathToLoad);
           if (fileExists) {
             console.log("[Chat] Auto-loading PDF for text extraction:", pathToLoad);
-            await loadPdf(pathToLoad);
+            // Find existing title from recent files to preserve clean titles
+            const existingFile = recentFiles.find(f => f.path === pathToLoad);
+            await loadPdf(pathToLoad, existingFile?.title);
           } else {
             console.log("[Chat] PDF file no longer exists:", pathToLoad);
             // Clear the invalid path and redirect to home
@@ -241,7 +247,7 @@ const Chat: React.FC = () => {
     };
 
     autoLoadLastPdf();
-  }, [lastSelectedPdfPath, currentPaper, index, loading, autoLoading, checkFileExists, loadPdf, setCurrentPaper, setLastSelectedPdfPath, navigate]);
+  }, [lastSelectedPdfPath, currentPaper, index, loading, autoLoading, checkFileExists, loadPdf, setCurrentPaper, setLastSelectedPdfPath, navigate, recentFiles]);
 
   const send = useCallback(async () => {
     if (!currentPaper || !index || !question.trim() || sending) return;
@@ -339,10 +345,19 @@ const Chat: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, sending]);
 
-  // Get document title for display
-  const documentTitle = currentPaper ? 
-    currentPaper.split('/').pop()?.replace('.pdf', '') || 'Document' : 
-    'No Document';
+  // Get document title for display - look up in recentFiles first, fallback to filename
+  const documentTitle = useMemo(() => {
+    if (!currentPaper) return 'No Document';
+    
+    // Try to find the title from recent files
+    const recentFile = recentFiles.find(f => f.path === currentPaper);
+    if (recentFile?.title) {
+      return recentFile.title;
+    }
+    
+    // Fallback to extracting from filename
+    return currentPaper.split('/').pop()?.replace('.pdf', '') || 'Document';
+  }, [currentPaper, recentFiles]);
 
   if (autoLoading) {
     return (
