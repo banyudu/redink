@@ -28,7 +28,7 @@ export const Navbar: React.FC = () => {
       {/* Animated background gradient */}
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 opacity-50"></div>
       
-      <div className="container mx-auto flex h-16 items-center justify-between px-6 relative z-10">
+      <div className="mx-auto flex h-16 items-center justify-between px-4 lg:px-16 relative z-10">
         {/* Logo section with gradient text */}
         <div className="flex items-center gap-3 group cursor-pointer" onClick={() => navigate("/")}>
           <div className="relative">

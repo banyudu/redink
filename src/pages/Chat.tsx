@@ -402,7 +402,7 @@ const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] animate-fade-in px-6 py-4 max-w-full mx-auto">
+    <div className="h-[calc(100vh-140px)] animate-fade-in py-4 max-w-full mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
@@ -413,7 +413,7 @@ const Chat: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => navigate('/')}
-                  className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                  className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-0"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to Home
