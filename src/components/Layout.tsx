@@ -17,7 +17,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       
       <Navbar />
       
-      <main className="flex-1 container mx-auto py-6 relative z-10 animate-fade-in w-full">
+      <main className="flex-1 mx-auto py-6 px-4 lg:px-16 relative z-10 animate-fade-in w-full">
         <div className="w-full">
           {children}
         </div>
