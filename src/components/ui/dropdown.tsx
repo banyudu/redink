@@ -7,11 +7,13 @@ export const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
 >(({ className, ...props }, ref) => (
-  <DropdownMenuPrimitive.Content
-    ref={ref}
-    className={"z-50 min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 text-zinc-900 shadow-md " + (className ?? "")}
-    {...props}
-  />
+  <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Content
+      ref={ref}
+      className={"z-50 min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 text-zinc-900 shadow-md animate-fadeIn " + (className ?? "")}
+      {...props}
+    />
+  </DropdownMenuPrimitive.Portal>
 ));
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 

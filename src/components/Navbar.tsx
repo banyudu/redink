@@ -7,6 +7,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "./ui/dropdown";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { useAppStore } from "../store";
 import { Moon, Sun, MessageSquare, Home, Settings } from "lucide-react";
 
@@ -39,55 +40,71 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* Navigation items */}
-        <div className="flex items-center gap-1">
-          {/* Chat button */}
-          <Button 
-            variant="ghost" 
-            className="gap-2 hover:bg-white/20 hover:text-blue-600 font-medium transition-all duration-300 hover:shadow-lg hover:scale-105" 
-            onClick={() => navigate("/chat")}
-          >
-            <MessageSquare className="w-4 h-4" />
-            {t("nav.chat")}
-          </Button>
+        <TooltipProvider>
+          <div className="flex items-center gap-1">
+            {/* Chat button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="gap-2 hover:bg-white/20 hover:text-blue-600 font-medium transition-all duration-300 hover:shadow-lg hover:scale-105" 
+                  onClick={() => navigate("/chat")}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  {t("nav.chat")}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Chat with your PDF using AI</p>
+              </TooltipContent>
+            </Tooltip>
 
-          {/* Papers dropdown */}
-          <DropdownMenu>
-            <DropdownMenuContent 
-              align="end" 
-              className="glass border-white/20 shadow-xl backdrop-blur-xl min-w-[160px] mt-2"
-            >
-              <DropdownMenuItem 
-                onClick={() => navigate("/home")}
-                className="gap-2 hover:bg-white/20 transition-all duration-200"
+            {/* Papers dropdown */}
+            <DropdownMenu>
+              <DropdownMenuContent 
+                align="end" 
+                className="glass border-white/20 shadow-xl backdrop-blur-xl min-w-[160px] mt-2"
               >
-                <Home className="w-4 h-4" />
-                {t("nav.home")}
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => navigate("/settings")}
-                className="gap-2 hover:bg-white/20 transition-all duration-200"
-              >
-                <Settings className="w-4 h-4" />
-                {t("nav.settings")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem 
+                  onClick={() => navigate("/home")}
+                  className="gap-2 hover:bg-white/20 transition-all duration-200"
+                >
+                  <Home className="w-4 h-4" />
+                  {t("nav.home")}
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => navigate("/settings")}
+                  className="gap-2 hover:bg-white/20 transition-all duration-200"
+                >
+                  <Settings className="w-4 h-4" />
+                  {t("nav.settings")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Theme toggle with beautiful transition */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={toggleTheme} 
-            aria-label="Toggle theme"
-            className="hover:bg-white/20 hover:text-yellow-500 transition-all duration-300 hover:shadow-lg hover:scale-110 relative overflow-hidden group"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            {theme === "light" ? 
-              <Moon className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:rotate-12" /> : 
-              <Sun className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:rotate-12" />
-            }
-          </Button>
-        </div>
+            {/* Theme toggle with beautiful transition */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={toggleTheme} 
+                  aria-label="Toggle theme"
+                  className="hover:bg-white/20 hover:text-yellow-500 transition-all duration-300 hover:shadow-lg hover:scale-110 relative overflow-hidden group"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  {theme === "light" ? 
+                    <Moon className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:rotate-12" /> : 
+                    <Sun className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:rotate-12" />
+                  }
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Toggle {theme === "light" ? "Dark" : "Light"} Mode</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       </div>
 
       {/* Bottom border gradient */}

@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { useAppStore } from "../store";
 import { generateFileId } from "../lib/utils";
 import { extractPdfFromPathWithMeta } from "../lib/pdf";
@@ -364,13 +365,22 @@ const Chat: React.FC = () => {
           </div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Document Selected</h3>
           <p className="text-gray-600 dark:text-gray-300 mb-4">Please select a PDF document to start chatting.</p>
-          <Button
-            onClick={() => navigate('/')}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-          >
-            <Home className="w-4 h-4 mr-2" />
-            Select Document
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={() => navigate('/')}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                >
+                  <Home className="w-4 h-4 mr-2" />
+                  Select Document
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Go to home page to select a PDF</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
     );
@@ -381,15 +391,24 @@ const Chat: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/')}
-            className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/')}
+                  className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Home
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Return to document library</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
@@ -584,17 +603,26 @@ const Chat: React.FC = () => {
                 />
               </div>
               
-              <Button 
-                onClick={send} 
-                disabled={!index || !question.trim() || sending || loading}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 px-6 transition-all duration-300 hover:scale-105"
-              >
-                {sending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={send} 
+                      disabled={!index || !question.trim() || sending || loading}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 px-6 transition-all duration-300 hover:scale-105"
+                    >
+                      {sending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Send message (Enter)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </div>

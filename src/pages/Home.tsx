@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { whisper, generateFileId } from "@/lib/utils";
 
 export const Home: React.FC = () => {
@@ -474,18 +475,27 @@ export const Home: React.FC = () => {
                       Start chatting with your research papers using AI
                     </p>
                   </div>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log('[DEBUG] Browse Files button clicked');
-                      handleFileSelect();
-                    }}
-                    disabled={loading}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-2"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Browse
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('[DEBUG] Browse Files button clicked');
+                            handleFileSelect();
+                          }}
+                          disabled={loading}
+                          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-2"
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          Browse
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Select a PDF file from your computer</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               )}
             </div>
@@ -504,15 +514,24 @@ export const Home: React.FC = () => {
                     <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
                   )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowCategorySelector(!showCategorySelector)}
-                  className="glass border-white/20 bg-white/10 backdrop-blur-xl"
-                >
-                  <Settings2 className="w-4 h-4 mr-2" />
-                  Categories ({selectedCategories.length})
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowCategorySelector(!showCategorySelector)}
+                        className="glass border-white/20 bg-white/10 backdrop-blur-xl"
+                      >
+                        <Settings2 className="w-4 h-4 mr-2" />
+                        Categories ({selectedCategories.length})
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Filter papers by ArXiv categories</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               
               {/* Category Selector */}
@@ -690,13 +709,21 @@ export const Home: React.FC = () => {
                   onClick={() => handleRecentFileSelect(file)}
                 >
                   {/* Delete button - top right corner */}
-                  <button
-                    onClick={(e) => handleRemoveRecentFile(file, e)}
-                    className="absolute top-2 right-2 p-1.5 rounded-md bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-50 dark:hover:bg-red-900/30 hover:border-red-200 dark:hover:border-red-800"
-                    title="Remove from recent"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400" />
-                  </button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => handleRemoveRecentFile(file, e)}
+                          className="absolute top-2 right-2 p-1.5 rounded-md bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-50 dark:hover:bg-red-900/30 hover:border-red-200 dark:hover:border-red-800"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Remove from recent files</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-md flex items-center justify-center flex-shrink-0">

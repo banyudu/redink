@@ -9,6 +9,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { readFile } from '@tauri-apps/plugin-fs';
 import { useAppStore } from '@/store';
 
@@ -376,7 +377,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   }
 
   return (
-    <div className={`flex flex-col h-full glass rounded-lg border border-white/20 backdrop-blur-xl relative ${className}`}>
+    <div className={`flex flex-col h-full glass rounded-lg border border-white/20 backdrop-blur-xl relative transition-none ${className}`}>
       {/* Loading Overlay */}
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg">
@@ -412,58 +413,95 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
           </span>
         </div>
 
-        <div className="flex items-center gap-1">
-          {/* Zoom Controls */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={zoomOut}
-            disabled={scale <= 0.5}
-            className="h-8 w-8 p-0"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={resetZoom}
-            className="h-8 px-2 text-xs"
-          >
-            {Math.round(scale * 100)}%
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={zoomIn}
-            disabled={scale >= 3.0}
-            className="h-8 w-8 p-0"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </Button>
+        <TooltipProvider>
+          <div className="flex items-center gap-1">
+            {/* Zoom Controls */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={zoomOut}
+                  disabled={scale <= 0.5}
+                  className="h-8 w-8 p-0"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Zoom Out (Ctrl/Cmd + Scroll)</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={resetZoom}
+                  className="h-8 px-2 text-xs"
+                >
+                  {Math.round(scale * 100)}%
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Reset Zoom to 100%</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={zoomIn}
+                  disabled={scale >= 3.0}
+                  className="h-8 w-8 p-0"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Zoom In (Ctrl/Cmd + Scroll)</p>
+              </TooltipContent>
+            </Tooltip>
 
-          <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2" />
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2" />
 
-          {/* Additional Controls */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={rotate}
-            className="h-8 w-8 p-0"
-          >
-            <RotateCw className="w-4 h-4" />
-          </Button>
+            {/* Additional Controls */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={rotate}
+                  className="h-8 w-8 p-0"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Rotate 90° Clockwise</p>
+              </TooltipContent>
+            </Tooltip>
 
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={fitToWidth}
-            className="h-8 w-8 p-0"
-          >
-            <Maximize2 className="w-4 h-4" />
-          </Button>
-        </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={fitToWidth}
+                  className="h-8 w-8 p-0"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Fit to Width</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       </div>
 
       {/* PDF Content */}

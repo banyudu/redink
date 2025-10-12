@@ -1,6 +1,7 @@
 import React from "react";
 import { useAppStore } from "../store";
 import { Button } from "../components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { UpdateChecker } from "../components/UpdateChecker";
 import { 
   Settings as SettingsIcon, 
@@ -243,19 +244,36 @@ export const Settings: React.FC = () => {
       </div>
 
       {/* Action Buttons */}
-      <div className="flex justify-center gap-4 pt-8">
-        <Button 
-          variant="outline"
-          className="glass border-white/20 bg-white/10 backdrop-blur-xl hover:bg-white/20 px-8"
-        >
-          Reset to Defaults
-        </Button>
-        <Button 
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8"
-        >
-          Save Changes
-        </Button>
-      </div>
+      <TooltipProvider>
+        <div className="flex justify-center gap-4 pt-8">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="outline"
+                className="glass border-white/20 bg-white/10 backdrop-blur-xl hover:bg-white/20 px-8"
+              >
+                Reset to Defaults
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Restore all settings to their default values</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8"
+              >
+                Save Changes
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Apply and save your settings</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
     </div>
   );
 }; 
