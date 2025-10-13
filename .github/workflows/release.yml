@@ -201,6 +201,16 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history including tags
+
+      - name: Debug release info
+        run: |
+          echo "🔍 Build job starting for ${{ matrix.platform }}"
+          echo "📋 Release ID: ${{ needs.create-release.outputs.release_id }}"
+          echo "📋 Tag: ${{ needs.create-release.outputs.tag }}"
+          echo "📋 Current branch/tag: $(git describe --tags --always)"
+          echo "📋 Build args: ${{ matrix.args }}"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -250,7 +260,16 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Pre-build info
+        run: |
+          echo "🔧 About to build with tauri-action..."
+          echo "📋 Release ID (type check): ${{ needs.create-release.outputs.release_id }}"
+          echo "📋 Tag: ${{ needs.create-release.outputs.tag }}"
+          echo "📋 Platform: ${{ matrix.platform }}"
+          echo "📋 Target: ${{ matrix.target }}"
+
       - name: Build Tauri app
+        id: tauri-build
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -260,8 +279,39 @@ jobs:
           # Use AVX2 instead which is widely supported and still fast
           RUSTFLAGS: ${{ matrix.arch == 'x86_64' && '-C target-cpu=haswell' || '' }}
         with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
+          # Pass release ID as string to ensure compatibility
+          releaseId: "${{ needs.create-release.outputs.release_id }}"
+          tagName: "${{ needs.create-release.outputs.tag }}"
+          releaseName: "Redink ${{ needs.create-release.outputs.tag }}"
           args: ${{ matrix.args }}
+
+      - name: Verify build artifacts
+        if: always()
+        run: |
+          echo "🔍 Checking for built artifacts..."
+          echo "📂 Target directory structure:"
+          find src-tauri/target -name "*.dmg" -o -name "*.app" | head -20 || echo "No .dmg or .app files found"
+          
+          echo ""
+          echo "📦 Checking bundle directory:"
+          if [ -d "src-tauri/target/${{ matrix.target }}/release/bundle" ]; then
+            ls -lah src-tauri/target/${{ matrix.target }}/release/bundle/
+            find src-tauri/target/${{ matrix.target }}/release/bundle -type f | head -20
+          else
+            echo "❌ Bundle directory not found"
+          fi
+
+      - name: Verify release assets
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔍 Checking release assets..."
+          TAG="${{ needs.create-release.outputs.tag }}"
+          echo "📋 Release tag: $TAG"
+          echo ""
+          echo "📦 Current assets:"
+          gh release view "$TAG" --json assets --jq '.assets[] | {name: .name, size: .size}'
 
   publish-release:
     permissions:
