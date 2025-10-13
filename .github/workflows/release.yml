@@ -19,6 +19,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history including tags
 
       - name: Get version from tag
         id: tag
@@ -32,11 +34,19 @@ jobs:
             exit 1
           fi
           
+          # Verify tag exists locally
+          if ! git tag -l "$TAG" | grep -q "^$TAG$"; then
+            echo "Error: Tag $TAG not found in repository"
+            echo "Available tags:"
+            git tag -l
+            exit 1
+          fi
+          
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "release_body=See the assets to download this version and install." >> $GITHUB_OUTPUT
           
-          echo "Creating release for tag: $TAG (version: $VERSION)"
+          echo "✓ Tag verified: $TAG (version: $VERSION)"
 
       - name: Create Release
         id: create-release
@@ -46,21 +56,31 @@ jobs:
           
           echo "Creating draft release for $TAG..."
           
-          gh release create "$TAG" \
-            --draft \
-            --title "Redink $VERSION" \
-            --notes "${{ steps.tag.outputs.release_body }}"
+          # Check if release already exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, using existing release"
+          else
+            # Create new release
+            gh release create "$TAG" \
+              --draft \
+              --title "Redink $VERSION" \
+              --notes "${{ steps.tag.outputs.release_body }}" \
+              --verify-tag
+            echo "✓ Created draft release"
+          fi
           
           # Get the release ID
           echo "Fetching release ID..."
           release_id=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.id')
           
           if [ -z "$release_id" ]; then
-            echo "Error: Failed to get release ID"
+            echo "Error: Failed to get release ID for tag $TAG"
+            echo "Checking if release exists..."
+            gh release view "$TAG" || echo "Release not found"
             exit 1
           fi
           
-          echo "Release ID: $release_id"
+          echo "✓ Release ID: $release_id"
           echo "release_id=$release_id" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
