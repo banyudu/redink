@@ -6707,7 +6707,7 @@ dependencies = [
 
 [[package]]
 name = "redink"
-version = "0.1.1-alpha.9"
+version = "0.1.1-alpha.10"
 dependencies = [
  "arrow-array",
  "arrow-schema",
