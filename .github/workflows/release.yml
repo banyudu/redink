@@ -12,7 +12,7 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     outputs:
-      release_id: ${{ steps.create-release.outputs.result }}
+      release_id: ${{ steps.create-release.outputs.release_id }}
       release_upload_url: ${{ steps.create-release.outputs.upload_url }}
       release_body: "${{ steps.tag.outputs.release_body }}"
       tag: ${{ steps.tag.outputs.tag }}
@@ -29,15 +29,17 @@ jobs:
 
       - name: Create Release
         id: create-release
-        uses: actions/create-release@v1
+        run: |
+          gh release create ${{ steps.tag.outputs.tag }} \
+            --draft \
+            --title "Redink ${{ steps.tag.outputs.version }}" \
+            --notes "${{ steps.tag.outputs.release_body }}"
+          
+          # Get the release ID
+          release_id=$(gh api repos/${{ github.repository }}/releases/tags/${{ steps.tag.outputs.tag }} --jq '.id')
+          echo "release_id=$release_id" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          release_name: Redink ${{ steps.tag.outputs.version }}
-          body: ${{ steps.tag.outputs.release_body }}
-          draft: true
-          prerelease: false
 
   build-tauri:
     needs: create-release
