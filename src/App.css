@@ -28,6 +28,7 @@
   flex-direction: column;
   justify-content: center;
   text-align: center;
+  max-width: unset;
 }
 
 .logo {

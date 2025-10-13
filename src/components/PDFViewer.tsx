@@ -6,7 +6,8 @@ import {
   RotateCw, 
   Maximize2,
   FileText,
-  Loader2
+  Loader2,
+  BookOpen
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
@@ -14,6 +15,7 @@ import { readFile } from '@tauri-apps/plugin-fs';
 import { useAppStore } from '@/store';
 import { useNavigate } from 'react-router-dom';
 import { openArxivPaper } from '@/lib/pdf-opener';
+import { Command } from '@tauri-apps/plugin-shell';
 
 // Configure PDF.js worker
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -64,6 +66,9 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   const [fileData, setFileData] = useState<Blob | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingArxiv, setDownloadingArxiv] = useState(false);
+  
+  // Detect if we're on macOS
+  const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   
   // Use refs to throttle zoom updates and prevent flickering
   const pendingScaleRef = React.useRef<number | null>(null);
@@ -607,6 +612,35 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
     setScale(Math.max(0.5, Math.min(newScale, 3.0)));
   }, []);
 
+  // Open PDF in iBooks (macOS only)
+  const openInIBooks = useCallback(async () => {
+    if (!filePath || !isMacOS) return;
+    
+    try {
+      console.log('[PDFViewer] Opening PDF in iBooks:', filePath);
+      
+      // Use AppleScript to open the file in Books.app
+      // This is more reliable than the 'open' command for Books
+      const script = `tell application "Books"
+        activate
+        open POSIX file "${filePath}"
+      end tell`;
+      
+      const command = Command.create('osascript', ['-e', script]);
+      const output = await command.execute();
+      
+      if (output.code !== 0) {
+        console.error('[PDFViewer] Failed to open in iBooks:', output.stderr);
+        alert(`Failed to open in iBooks: ${output.stderr || 'Unknown error'}`);
+      } else {
+        console.log('[PDFViewer] Successfully opened in iBooks');
+      }
+    } catch (error: any) {
+      console.error('[PDFViewer] Error opening in iBooks:', error);
+      alert(`Failed to open in iBooks: ${error?.message ?? 'Unknown error'}`);
+    }
+  }, [filePath, isMacOS]);
+
 
   // Handle case when no file path is provided
   if (!filePath) {
@@ -758,6 +792,29 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
                 <p>Fit to Width</p>
               </TooltipContent>
             </Tooltip>
+
+            {/* Open in iBooks (macOS only) */}
+            {isMacOS && (
+              <>
+                <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2" />
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={openInIBooks}
+                      className="h-8 w-8 p-0"
+                    >
+                      <BookOpen className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Open in Books</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )}
           </div>
         </TooltipProvider>
       </div>

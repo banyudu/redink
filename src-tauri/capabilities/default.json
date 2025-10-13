@@ -36,6 +36,20 @@
     "updater:default",
     "updater:allow-check",
     "updater:allow-download-and-install",
-    "process:allow-restart"
+    "process:allow-restart",
+    "shell:default",
+    "shell:allow-open",
+    "shell:allow-execute",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "osascript",
+          "cmd": "osascript",
+          "args": true,
+          "sidecar": false
+        }
+      ]
+    }
   ]
 }

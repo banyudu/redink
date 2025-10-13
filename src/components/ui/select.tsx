@@ -17,7 +17,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors outline-0 ring-0",
+      "flex h-10 w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors outline-0 ring-0 hover:cursor-pointer",
       "border-gray-300 group-hover:border-gray-400",
       "disabled:cursor-not-allowed disabled:opacity-50",
       // Only apply default background/border if no custom classes are provided
