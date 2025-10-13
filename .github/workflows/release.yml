@@ -104,37 +104,47 @@ jobs:
           if gh release view "$TAG" &>/dev/null; then
             echo "ℹ️  Release for $TAG already exists, using existing release"
           else
-            echo "📝 Creating new draft release..."
+            echo "📝 Creating new draft release using GitHub API..."
             
-            # Create new release using the tag
-            gh release create "$TAG" \
-              --draft \
-              --title "Redink $VERSION" \
-              --notes "${{ steps.tag.outputs.release_body }}" \
-              --verify-tag
+            # Get the commit SHA for the tag
+            TAG_SHA=$(gh api "repos/${{ github.repository }}/git/refs/tags/$TAG" --jq '.object.sha')
+            echo "📋 Tag SHA: $TAG_SHA"
             
-            echo "✅ Created draft release"
-          fi
-          
-          # Verify release was created successfully
-          echo "🔍 Verifying release creation..."
-          if ! gh release view "$TAG" &>/dev/null; then
-            echo "❌ Error: Release view failed after creation"
-            exit 1
+            # Create release via GitHub API (more reliable than gh release create)
+            release_response=$(gh api \
+              --method POST \
+              "repos/${{ github.repository }}/releases" \
+              -f tag_name="$TAG" \
+              -f target_commitish="$TAG_SHA" \
+              -f name="Redink $VERSION" \
+              -f body="${{ steps.tag.outputs.release_body }}" \
+              -F draft=true \
+              -F prerelease=false)
+            
+            echo "✅ Created draft release via API"
+            echo "📋 Response: $release_response"
           fi
           
           # Get the release details
-          echo "📋 Release details:"
-          gh release view "$TAG" --json name,tagName,isDraft,url
+          echo "🔍 Verifying release creation..."
+          release_details=$(gh release view "$TAG" --json id,name,tagName,isDraft,url)
+          echo "📋 Release details: $release_details"
           
-          # Get the release ID
-          echo "🔍 Fetching release ID..."
-          release_id=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.id')
+          # Extract release ID from the details
+          release_id=$(echo "$release_details" | jq -r '.id')
           
-          if [ -z "$release_id" ]; then
-            echo "❌ Error: Failed to get release ID for tag $TAG"
-            echo "Debugging: Checking all releases..."
-            gh api "repos/${{ github.repository }}/releases" --jq '.[] | select(.draft==true) | {id, tag_name, name}'
+          if [ -z "$release_id" ] || [ "$release_id" = "null" ]; then
+            echo "❌ Error: Failed to get release ID from release view"
+            echo "🔍 Debugging: Trying alternative methods..."
+            
+            # Try to get from API by tag
+            echo "Method 1: Get by tag..."
+            gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.id' || echo "Failed"
+            
+            # Try to get latest draft
+            echo "Method 2: Get latest draft..."
+            gh api "repos/${{ github.repository }}/releases" --jq '.[] | select(.draft==true) | {id, tag_name, name}' | head -5
+            
             exit 1
           fi
           
