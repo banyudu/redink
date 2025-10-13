@@ -51,6 +51,16 @@ rl.question(`Enter new version (current: ${currentVersion}): `, (newVersion) => 
   writeFileSync(cargoTomlPath, cargoToml);
   console.log('✓ Updated Cargo.toml');
 
+  // Update Cargo.lock with new version
+  console.log('Updating Cargo.lock...');
+  try {
+    execSync('cd src-tauri && cargo update -p redink', { stdio: 'inherit' });
+    console.log('✓ Updated Cargo.lock');
+  } catch (error) {
+    console.error('⚠️  Warning: Failed to update Cargo.lock:', error.message);
+    console.log('  You may need to run "cd src-tauri && cargo update -p redink" manually');
+  }
+
   // Update tauri.conf.json
   const tauriConfPath = join(__dirname, '..', 'src-tauri', 'tauri.conf.json');
   const tauriConf = JSON.parse(readFileSync(tauriConfPath, 'utf8'));

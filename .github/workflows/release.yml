@@ -23,20 +23,44 @@ jobs:
       - name: Get version from tag
         id: tag
         run: |
-          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          # Extract tag from GITHUB_REF
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG#v}"
+          else
+            echo "Error: This workflow must be triggered by a tag push (refs/tags/v*)"
+            exit 1
+          fi
+          
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "release_body=See the assets to download this version and install." >> $GITHUB_OUTPUT
+          
+          echo "Creating release for tag: $TAG (version: $VERSION)"
 
       - name: Create Release
         id: create-release
         run: |
-          gh release create ${{ steps.tag.outputs.tag }} \
+          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${{ steps.tag.outputs.version }}"
+          
+          echo "Creating draft release for $TAG..."
+          
+          gh release create "$TAG" \
             --draft \
-            --title "Redink ${{ steps.tag.outputs.version }}" \
+            --title "Redink $VERSION" \
             --notes "${{ steps.tag.outputs.release_body }}"
           
           # Get the release ID
-          release_id=$(gh api repos/${{ github.repository }}/releases/tags/${{ steps.tag.outputs.tag }} --jq '.id')
+          echo "Fetching release ID..."
+          release_id=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.id')
+          
+          if [ -z "$release_id" ]; then
+            echo "Error: Failed to get release ID"
+            exit 1
+          fi
+          
+          echo "Release ID: $release_id"
           echo "release_id=$release_id" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
