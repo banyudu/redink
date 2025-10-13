@@ -107,11 +107,33 @@ jobs:
             echo "📝 Creating new draft release using GitHub API..."
             
             # Get the commit SHA for the tag
-            TAG_SHA=$(gh api "repos/${{ github.repository }}/git/refs/tags/$TAG" --jq '.object.sha')
-            echo "📋 Tag SHA: $TAG_SHA"
+            TAG_REF=$(gh api "repos/${{ github.repository }}/git/refs/tags/$TAG")
+            echo "📋 Tag ref response: $TAG_REF"
+            
+            TAG_OBJECT_SHA=$(echo "$TAG_REF" | jq -r '.object.sha')
+            TAG_OBJECT_TYPE=$(echo "$TAG_REF" | jq -r '.object.type')
+            echo "📋 Tag object SHA: $TAG_OBJECT_SHA"
+            echo "📋 Tag object type: $TAG_OBJECT_TYPE"
+            
+            # If it's an annotated tag, dereference to get the commit SHA
+            if [ "$TAG_OBJECT_TYPE" = "tag" ]; then
+              echo "🔍 Annotated tag detected, dereferencing to commit..."
+              TAG_SHA=$(gh api "repos/${{ github.repository }}/git/tags/$TAG_OBJECT_SHA" --jq '.object.sha')
+              echo "📋 Commit SHA: $TAG_SHA"
+            else
+              TAG_SHA="$TAG_OBJECT_SHA"
+              echo "📋 Lightweight tag, using SHA directly: $TAG_SHA"
+            fi
+            
+            if [ -z "$TAG_SHA" ] || [ "$TAG_SHA" = "null" ]; then
+              echo "❌ Error: Failed to get valid commit SHA"
+              exit 1
+            fi
             
             # Create release via GitHub API (more reliable than gh release create)
-            release_response=$(gh api \
+            echo "🔧 Calling GitHub API to create release..."
+            
+            if ! release_response=$(gh api \
               --method POST \
               "repos/${{ github.repository }}/releases" \
               -f tag_name="$TAG" \
@@ -119,10 +141,15 @@ jobs:
               -f name="Redink $VERSION" \
               -f body="${{ steps.tag.outputs.release_body }}" \
               -F draft=true \
-              -F prerelease=false)
+              -F prerelease=false 2>&1); then
+              echo "❌ Error: API call failed"
+              echo "Response: $release_response"
+              exit 1
+            fi
             
             echo "✅ Created draft release via API"
-            echo "📋 Response: $release_response"
+            echo "📋 API Response (first 500 chars):"
+            echo "$release_response" | head -c 500
           fi
           
           # Get the release details
