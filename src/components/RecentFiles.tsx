@@ -50,11 +50,9 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
     }
   };
 
-  const getFileIcon = (file: RecentFile) => {
-    if (file.path.toLowerCase().includes('arxiv') || file.title?.toLowerCase().includes('arxiv')) {
-      return <img src="/logo.png" alt="Logo" className="w-5 h-5" />;
-    }
-    return <FileText className="w-5 h-5 text-blue-500" />;
+  const getFileIcon = () => {
+    // Always use ArXiv logo for all documents
+    return <img src="/arxiv.png" alt="ArXiv" className="w-5 h-5" />;
   };
 
   if (recentFiles.length === 0) {
@@ -123,8 +121,8 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
               <div className="relative z-10 flex items-center gap-3">
                 {/* File Icon */}
                 <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    {getFileIcon(file)}
+                  <div className="w-10 h-10 rounded-md flex items-center justify-center">
+                    {getFileIcon()}
                   </div>
                 </div>
 

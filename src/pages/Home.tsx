@@ -12,7 +12,6 @@ import {
   type ArxivPaper
 } from "../lib/arxiv";
 import { 
-  FileText, 
   Upload, 
   Search,
   Clock,
@@ -25,7 +24,9 @@ import {
   X,
   Check,
   Trash2,
-  MessageSquare
+  MessageSquare,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -57,6 +58,7 @@ export const Home: React.FC = () => {
   const [showCategorySelector, setShowCategorySelector] = useState(false);
   const [downloadedPapers, setDownloadedPapers] = useState<Set<string>>(new Set());
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showAllRecentFiles, setShowAllRecentFiles] = useState(false);
 
   // Load recent files, preferences, and initialize storage on mount
   React.useEffect(() => {
@@ -64,7 +66,7 @@ export const Home: React.FC = () => {
       try {
         await cacheManager.initialize();
         await storageManager.initialize();
-        const cachedFiles = cacheManager.getRecentFiles().slice(0, 5); // Limit to 5
+        const cachedFiles = cacheManager.getRecentFiles(); // Get all recent files
         setRecentFiles(cachedFiles);
         
         // Load user preferences for arXiv categories
@@ -689,7 +691,7 @@ export const Home: React.FC = () => {
 
             {/* Recent files grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-              {recentFiles.map((file) => (
+              {(showAllRecentFiles ? recentFiles : recentFiles.slice(0, 6)).map((file) => (
                 <div
                   key={file.id}
                   className={`relative p-4 border border-white/20 rounded-lg cursor-pointer transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 group ${
@@ -715,8 +717,8 @@ export const Home: React.FC = () => {
                   </TooltipProvider>
                   
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-md flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-5 h-5 text-white" />
+                    <div className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0">
+                      <img src="/arxiv.png" alt="ArXiv" className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-semibold text-gray-900 dark:text-white text-base line-clamp-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 mb-1">
@@ -768,6 +770,30 @@ export const Home: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Expand/Collapse Button */}
+            {recentFiles.length > 6 && (
+              <div className="flex justify-center mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAllRecentFiles(!showAllRecentFiles)}
+                  className="glass border-white/20 bg-white/10 backdrop-blur-xl"
+                >
+                  {showAllRecentFiles ? (
+                    <>
+                      <ChevronUp className="w-4 h-4 mr-2" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-4 h-4 mr-2" />
+                      Show All ({recentFiles.length - 6} more)
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* ArXiv Browser - Full Width */}
