@@ -53,56 +53,7 @@ jobs:
           
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Create release body with installation instructions
-          {
-            echo "release_body<<EOF"
-            echo "## 📥 Installation"
-            echo ""
-            echo "### macOS Users - Important!"
-            echo ""
-            echo "⚠️ **You will see a \"damaged\" error when first opening Redink.** This is normal for unsigned apps."
-            echo ""
-            echo "#### Quick Fix (Recommended)"
-            echo ""
-            echo "After downloading, run this in Terminal:"
-            echo ""
-            echo "\`\`\`bash"
-            echo "xattr -cr ~/Downloads/Redink*.dmg"
-            echo "# After installing to Applications:"
-            echo "xattr -cr /Applications/Redink.app"
-            echo "\`\`\`"
-            echo ""
-            echo "#### Alternative: System Settings Method"
-            echo ""
-            echo "1. Try to open Redink (it will show an error)"
-            echo "2. Open **System Settings** → **Privacy & Security**"
-            echo "3. Scroll down and click **\"Open Anyway\"**"
-            echo "4. Click **Open** in the confirmation"
-            echo ""
-            echo "#### Helper Script"
-            echo ""
-            echo "Download \`install-helper.sh\` from the assets below and run:"
-            echo ""
-            echo "\`\`\`bash"
-            echo "bash install-helper.sh"
-            echo "\`\`\`"
-            echo ""
-            echo "**Why this happens**: Redink is not notarized with Apple (requires \$99/year Apple Developer account). The app is completely safe to use."
-            echo ""
-            echo "---"
-            echo ""
-            echo "## 📦 Downloads"
-            echo ""
-            echo "- **macOS Apple Silicon (M1/M2/M3)**: Download the \`aarch64.dmg\` file"
-            echo "- **macOS Intel**: Download the \`x86_64.dmg\` file"
-            echo "- **Helper Script**: \`install-helper.sh\` makes installation easier"
-            echo ""
-            echo "---"
-            echo ""
-            echo "See the [README](https://github.com/banyudu/redink#readme) for more details."
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+          echo "release_body=See the assets to download this version and install." >> $GITHUB_OUTPUT
           
           echo "✅ Tag verified: $TAG (version: $VERSION)"
 
@@ -333,26 +284,6 @@ jobs:
           tagName: "${{ needs.create-release.outputs.tag }}"
           releaseName: "Redink ${{ needs.create-release.outputs.tag }}"
           args: ${{ matrix.args }}
-
-      - name: Upload macOS install helper script
-        if: startsWith(matrix.platform, 'macos-')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="${{ needs.create-release.outputs.tag }}"
-          echo "📤 Uploading install helper script for macOS users..."
-          
-          # Only upload once (from the first macOS build)
-          if [ "${{ matrix.arch }}" = "aarch64" ]; then
-            # Make sure script is executable
-            chmod +x scripts/install-helper.sh
-            
-            # Upload to release
-            gh release upload "$TAG" scripts/install-helper.sh --clobber || echo "⚠️ Script already uploaded"
-            echo "✅ Install helper script uploaded"
-          else
-            echo "ℹ️ Skipping upload (already uploaded from aarch64 build)"
-          fi
 
       - name: Verify build artifacts
         if: always()
