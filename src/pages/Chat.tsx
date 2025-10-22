@@ -402,9 +402,9 @@ const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] animate-fade-in py-4 max-w-full mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="h-[calc(100vh-140px)] py-4 max-w-full mx-auto" style={{ minHeight: '600px' }}>
+      {/* Header - Fixed height to prevent layout shift */}
+      <div className="flex items-center justify-between mb-4 flex-shrink-0" style={{ minHeight: '60px' }}>
         <div className="flex items-center gap-4">
           <TooltipProvider>
             <Tooltip>
@@ -429,32 +429,34 @@ const Chat: React.FC = () => {
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
               <MessageSquare className="w-4 h-4 text-white" />
             </div>
-            <div>
+            <div style={{ minWidth: '200px' }}>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">{documentTitle}</h1>
-              {meta && (
-                <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
-                  <span>{meta.pages} pages • {(meta.chars / 1000).toFixed(1)}k chars • {index?.chunks.length ?? 0} chunks</span>
-                  {meta.hasSemanticIndex && (
-                    <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                      <Sparkles className="w-3 h-3" />
-                      <span className="text-xs">Hybrid RAG</span>
-                    </span>
-                  )}
-                </p>
-              )}
+              <div style={{ minHeight: '20px' }}>
+                {meta && (
+                  <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                    <span>{meta.pages} pages • {(meta.chars / 1000).toFixed(1)}k chars • {index?.chunks.length ?? 0} chunks</span>
+                    {meta.hasSemanticIndex && (
+                      <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                        <Sparkles className="w-3 h-3" />
+                        <span className="text-xs">Hybrid RAG</span>
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Model Configuration */}
-        <div className="flex items-center gap-2">
+        {/* Model Configuration - Fixed dimensions to prevent layout shift */}
+        <div className="flex items-center gap-2" style={{ minWidth: '280px' }}>
           <Settings className="w-4 h-4 text-gray-400" />
           <Select
             value={selectedModel}
             onValueChange={setSelectedModel}
             disabled={loadingModels}
           >
-            <SelectTrigger className="w-64 h-10 glass border-white/20 bg-white/10 backdrop-blur-xl text-sm text-gray-900 dark:text-white hover:border-white/30 transition-colors">
+            <SelectTrigger className="w-64 h-10 glass border-white/20 bg-white/10 backdrop-blur-xl text-sm text-gray-900 dark:text-white hover:border-white/30">
               <SelectValue placeholder={loadingModels ? "Loading models..." : "Select a model"} />
             </SelectTrigger>
             <SelectContent className="glass border-white/20 backdrop-blur-xl bg-white/95 dark:bg-gray-800/95 dark:text-white">
@@ -478,35 +480,43 @@ const Chat: React.FC = () => {
         </div>
       </div>
 
-      {/* Two Column Layout with Resizable Split */}
-      <div className="flex gap-0 h-[calc(100%-72px)] relative">
-        {/* Left Column - PDF Viewer */}
+      {/* Two Column Layout with Resizable Split - Fixed dimensions to prevent layout shift */}
+      <div className="flex gap-0 h-[calc(100%-72px)] relative" style={{ minHeight: '500px' }}>
+        {/* Left Column - PDF Viewer - Fixed dimensions during transitions */}
         <div 
-          className="h-full overflow-hidden transition-all"
-          style={{ width: `${leftWidth}%` }}
+          className="h-full overflow-hidden"
+          style={{ 
+            width: `${leftWidth}%`, 
+            minWidth: '200px',
+            transition: isDragging ? 'none' : 'width 0.2s ease-out'
+          }}
         >
           <PDFViewer filePath={currentPaper} className="h-full" />
         </div>
 
-        {/* Resize Handle */}
+        {/* Resize Handle - Fixed dimensions */}
         <div
-          className={`w-1.5 cursor-col-resize transition-all`}
+          className="w-1.5 cursor-col-resize hover:bg-blue-500 flex-shrink-0 bg-transparent my-2 rounded-sm"
           onMouseDown={handleMouseDown}
         />
 
-        {/* Right Column - Chat Interface */}
+        {/* Right Column - Chat Interface - Fixed dimensions during transitions */}
         <div 
-          className="flex flex-col h-full min-h-0 transition-all"
-          style={{ width: `${100 - leftWidth}%` }}
+          className="flex flex-col h-full min-h-0"
+          style={{ 
+            width: `${100 - leftWidth}%`,
+            minWidth: '200px',
+            transition: isDragging ? 'none' : 'width 0.2s ease-out'
+          }}
         >
-          {/* Chat Messages Area */}
-          <div className="flex-1 glass rounded-lg border border-white/20 backdrop-blur-xl overflow-hidden mb-4 flex flex-col min-h-0">
-            <div className="p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl flex-shrink-0">
+          {/* Chat Messages Area - Fixed dimensions to prevent layout shift */}
+          <div className="flex-1 glass rounded-lg border border-white/20 backdrop-blur-xl overflow-hidden mb-4 flex flex-col min-h-0" style={{ minHeight: '300px' }}>
+            <div className="p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl flex-shrink-0" style={{ minHeight: '80px' }}>
               <h3 className="font-semibold text-gray-900 dark:text-white">AI Conversation</h3>
               <p className="text-sm text-gray-600 dark:text-gray-300">Ask questions about your research paper</p>
             </div>
             
-            <div className="flex-1 p-6 overflow-auto space-y-4 min-h-0">
+            <div className="flex-1 p-6 overflow-auto space-y-4 min-h-0" style={{ minHeight: '200px' }}>
                 {messages.length === 0 && index && (
                   <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                     <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
@@ -599,8 +609,8 @@ const Chat: React.FC = () => {
               </div>
           </div>
 
-          {/* Message Input */}
-          <div className="glass rounded-lg p-4 border border-white/20 backdrop-blur-xl flex-shrink-0">
+          {/* Message Input - Fixed dimensions to prevent layout shift */}
+          <div className="glass rounded-lg p-4 border border-white/20 backdrop-blur-xl flex-shrink-0" style={{ minHeight: '80px' }}>
             <div className="flex items-center gap-3">
               <div className="flex-1 relative">
                 <Input
@@ -615,6 +625,7 @@ const Chat: React.FC = () => {
                   }}
                   disabled={!index || sending || loading}
                   className="glass border-white/20 bg-white/10 backdrop-blur-xl"
+                  style={{ minHeight: '40px' }}
                 />
               </div>
               

@@ -658,8 +658,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   }
 
   return (
-    <div className={`flex flex-col h-full glass rounded-lg border border-white/20 backdrop-blur-xl relative transition-none ${className}`}>
-      {/* Loading Overlay */}
+    <div className={`flex flex-col h-full glass rounded-lg border border-white/20 backdrop-blur-xl relative ${className}`} style={{ minHeight: '400px' }}>
+      {/* Loading Overlay - Fixed dimensions to prevent layout shift */}
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg">
           <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
@@ -670,7 +670,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
         </div>
       )}
 
-      {/* Downloading ArXiv Paper Overlay */}
+      {/* Downloading ArXiv Paper Overlay - Fixed dimensions to prevent layout shift */}
       {downloadingArxiv && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg">
           <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
@@ -681,7 +681,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
         </div>
       )}
 
-      {/* Error Overlay */}
+      {/* Error Overlay - Fixed dimensions to prevent layout shift */}
       {error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg">
           <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
@@ -694,13 +694,13 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl">
+      {/* Toolbar - Fixed height to prevent layout shift */}
+      <div className="flex items-center justify-between p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl flex-shrink-0" style={{ minHeight: '64px' }}>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
             <FileText className="w-4 h-4 text-white" />
           </div>
-          <span className="font-medium text-gray-900 dark:text-white text-sm">
+          <span className="font-medium text-gray-900 dark:text-white text-sm" style={{ minWidth: '120px' }}>
             PDF Viewer {totalPages > 0 && `(Page ${currentPage} of ${totalPages})`}
           </span>
         </div>
@@ -819,7 +819,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
         </TooltipProvider>
       </div>
 
-      {/* PDF Content */}
+      {/* PDF Content - Fixed layout to prevent shifts */}
       <div 
         ref={(node) => {
           pdfContainerRef(node);
@@ -834,8 +834,9 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
           }
         }}
         className="flex-1 overflow-auto p-2 bg-gray-50 dark:bg-gray-900/50 custom-scrollbar"
+        style={{ minHeight: '300px' }}
       >
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-2 min-h-full">
           {fileData && (() => {
             console.log('[PDFViewer] Rendering Document component with fileData:', {
               size: fileData.size,
@@ -849,13 +850,13 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
               onLoadSuccess={onDocumentLoadSuccess}
               onLoadError={onDocumentLoadError}
               loading={
-                <div className="flex items-center justify-center p-8">
+                <div className="flex items-center justify-center p-8" style={{ minHeight: '200px' }}>
                   <Loader2 className="w-8 h-8 text-blue-500 animate-spin mr-3" />
                   <span className="text-gray-600">Loading PDF...</span>
                 </div>
               }
               error={
-                <div className="flex items-center justify-center p-8 text-red-600">
+                <div className="flex items-center justify-center p-8 text-red-600" style={{ minHeight: '200px' }}>
                   <FileText className="w-8 h-8 mr-3" />
                   <span>Failed to load PDF</span>
                 </div>
@@ -864,7 +865,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
               {Array.from(new Array(totalPages), (_, index) => {
                 const pageNum = index + 1;
                 return (
-                  <div key={`page_${pageNum}`} className="" data-page-number={pageNum}>
+                  <div key={`page_${pageNum}`} className="mb-4" data-page-number={pageNum} style={{ minHeight: '600px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
                     <Page
                       pageNumber={pageNum}
                       scale={scale}
@@ -872,13 +873,13 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
                       renderTextLayer={true}
                       renderAnnotationLayer={true}
                       loading={
-                        <div className="flex items-center justify-center p-8">
+                        <div className="flex items-center justify-center p-8" style={{ minHeight: '600px', width: '600px' }}>
                           <Loader2 className="w-6 h-6 text-blue-500 animate-spin mr-2" />
                           <span className="text-sm text-gray-600">Rendering page {pageNum}...</span>
                         </div>
                       }
                       error={
-                        <div className="flex items-center justify-center p-8 text-red-600">
+                        <div className="flex items-center justify-center p-8 text-red-600" style={{ minHeight: '600px', width: '600px' }}>
                           <span className="text-sm">Failed to render page {pageNum}</span>
                         </div>
                       }

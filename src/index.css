@@ -82,9 +82,19 @@ body {
   background: var(--gradient-secondary);
 }
 
-/* Smooth transitions for all elements */
+/* Smooth transitions for specific properties only - prevent layout shifts */
 * {
-  transition: all 0.2s ease-in-out;
+  transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, opacity 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+/* Prevent transitions on layout-affecting properties that could cause shifts */
+.no-layout-transition {
+  transition: none !important;
+}
+
+/* Specific transition rules for elements that should animate size changes */
+.allow-size-transition {
+  transition: width 0.2s ease-out, height 0.2s ease-out, transform 0.2s ease-out;
 }
 
 /* Modern typography classes */
@@ -138,17 +148,42 @@ body {
   animation: glow 2s ease-in-out infinite;
 }
 
-/* React-PDF styles */
+/* React-PDF styles - prevent layout shifts during loading */
 .react-pdf__Document {
   display: flex;
   flex-direction: column;
   align-items: center;
+  min-height: 400px; /* Ensure minimum height during loading */
 }
 
 .react-pdf__Page {
   max-width: calc(100% - 2em);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+  min-height: 600px; /* Ensure consistent page height */
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* Prevent layout shift during page transitions */
+.react-pdf__Page canvas {
+  display: block !important;
+}
+
+.react-pdf__Page {
   margin-bottom: 1em;
+}
+
+/* Dragging separator styles to prevent layout shift */
+.dragging-separator * {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Loading states should maintain dimensions */
+.loading-container {
+  min-height: inherit;
+  min-width: inherit;
 }
 
 .react-pdf__Page__textContent {
