@@ -1,8 +1,47 @@
 # Redink
 
-A modern web application for managing and chatting with Arxiv papers using local LLM models.
+A modern desktop application for managing and chatting with ArXiv papers using local LLM models.
 
-## Project Setup
+## Download & Installation
+
+### For End Users
+
+Download the latest release from the [Releases page](https://github.com/banyudu/redink/releases/latest).
+
+#### macOS Installation
+
+⚠️ **Important**: You will see a **"Redink is damaged"** error on first launch. This is normal for unsigned apps.
+
+**Quick Fix (Recommended)**:
+```bash
+# After downloading, run in Terminal:
+xattr -cr ~/Downloads/Redink*.dmg
+# After installing to Applications:
+xattr -cr /Applications/Redink.app
+```
+
+**Alternative - System Settings**:
+1. Try to open Redink (it will fail with an error)
+2. Go to **System Settings** → **Privacy & Security**
+3. Scroll down and click **"Open Anyway"** next to the Redink warning
+4. Click **Open** in the confirmation dialog
+
+**Why this happens**: Redink is not notarized with Apple (requires $99/year developer account). The app is safe to use - this is just macOS Gatekeeper protecting against unsigned apps.
+
+#### Helper Script
+
+Download `install-helper.sh` from the releases page and run:
+```bash
+bash install-helper.sh
+```
+
+This interactive script will automatically fix the Gatekeeper issue for you.
+
+---
+
+## For Developers
+
+### Project Setup
 
 ### Prerequisites
 - Node.js (v18 or later)
@@ -118,12 +157,47 @@ scripts/
 - 🌍 **i18n**: Multi-language support (English, Chinese)
 - 💾 **Offline First**: All data stored locally
 
+## Troubleshooting
+
+### macOS: "Redink is damaged and can't be opened"
+
+This is a false positive from macOS Gatekeeper. See the [Installation section](#macos-installation) above for fixes.
+
+**To check detailed logs**:
+```bash
+# Launch from terminal to see errors
+/Applications/Redink.app/Contents/MacOS/Redink
+
+# Or watch system logs
+log stream --predicate 'process == "Redink"' --level debug
+```
+
+### macOS: App won't open after fixing quarantine
+
+Try:
+1. Right-click on Redink.app → **Open** (not just double-click)
+2. Check Console.app for error messages
+3. Verify quarantine is removed: `xattr /Applications/Redink.app`
+
+### Other Issues
+
+1. Check the [Issues page](https://github.com/banyudu/redink/issues) for existing problems
+2. [Open a new issue](https://github.com/banyudu/redink/issues/new) with:
+   - Your OS version
+   - Redink version
+   - Steps to reproduce
+   - Any error messages or logs
+
 ## Contributing
+
 1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Create a Pull Request
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines (if available).
+
 ## License
-MIT
+
+MIT - see [LICENSE](LICENSE) for details.
