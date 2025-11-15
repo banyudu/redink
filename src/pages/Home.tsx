@@ -26,7 +26,8 @@ import {
   Trash2,
   MessageSquare,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -59,6 +60,7 @@ export const Home: React.FC = () => {
   const [downloadedPapers, setDownloadedPapers] = useState<Set<string>>(new Set());
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showAllRecentFiles, setShowAllRecentFiles] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Load recent files, preferences, and initialize storage on mount
   React.useEffect(() => {
@@ -92,15 +94,20 @@ export const Home: React.FC = () => {
     initialize();
   }, [setRecentFiles]);
 
-  // Load ArXiv papers based on selected categories
-  React.useEffect(() => {
-    const loadPapers = async () => {
-      if (selectedCategories.length === 0) return; // Wait for categories to load
-      
-      setPapersError(null);
-      let hasCachedData = false;
-      
-      try {
+  // Function to load ArXiv papers
+  const loadPapers = useCallback(async (forceRefresh = false) => {
+    if (selectedCategories.length === 0) return; // Wait for categories to load
+    
+    setPapersError(null);
+    let hasCachedData = false;
+    
+    if (forceRefresh) {
+      setIsRefreshing(true);
+      setLoadingPapers(true);
+    }
+    
+    try {
+      if (!forceRefresh) {
         // First, try to load cached data immediately (don't show loading if we have cached data)
         const sortedCategories = [...selectedCategories].sort();
         const cacheKey = `categories_${sortedCategories.join('_')}_20`;
@@ -117,27 +124,46 @@ export const Home: React.FC = () => {
           setLoadingPapers(true);
           console.log('[Home] No cached data, fetching from ArXiv...');
         }
-        
-        // Then fetch fresh data in the background (this will use cache if available and valid)
-        const papers = await getPapersByCategoriesCached(selectedCategories, 20);
-        setArxivPapers(papers);
-        setFilteredPapers(papers);
-        console.log('[Home] Updated with papers for categories:', selectedCategories, 'count:', papers.length);
-      } catch (error: any) {
-        console.error('[Home] Failed to load papers:', error);
-        setPapersError('Failed to load ArXiv papers. Please try again later.');
-        // Only clear data if we don't have cached data
-        if (!hasCachedData) {
-          setArxivPapers([]);
-          setFilteredPapers([]);
-        }
-      } finally {
-        setLoadingPapers(false);
       }
-    };
-    
-    loadPapers();
+      
+      // Fetch fresh data (this will use cache if available and valid, unless forceRefresh is true)
+      const papers = await getPapersByCategoriesCached(selectedCategories, 20);
+      setArxivPapers(papers);
+      setFilteredPapers(papers);
+      console.log('[Home] Updated with papers for categories:', selectedCategories, 'count:', papers.length);
+    } catch (error: any) {
+      console.error('[Home] Failed to load papers:', error);
+      setPapersError('Failed to load ArXiv papers. Please try again later.');
+      // Only clear data if we don't have cached data
+      if (!hasCachedData) {
+        setArxivPapers([]);
+        setFilteredPapers([]);
+      }
+    } finally {
+      setLoadingPapers(false);
+      if (forceRefresh) {
+        setIsRefreshing(false);
+      }
+    }
   }, [selectedCategories]);
+
+  // Handle refresh button click
+  const handleRefreshPapers = useCallback(async () => {
+    // Force reload by clearing all cache and fetching fresh data
+    try {
+      arxivCache.clear(); // Clear memory cache
+      console.log('[Home] Cleared cache before refresh');
+    } catch (error) {
+      console.error('[Home] Failed to clear cache:', error);
+    }
+    
+    await loadPapers(true);
+  }, [loadPapers]);
+
+  // Load ArXiv papers based on selected categories
+  React.useEffect(() => {
+    loadPapers();
+  }, [loadPapers]);
 
   // Search ArXiv papers with debouncing
   React.useEffect(() => {
@@ -501,28 +527,48 @@ export const Home: React.FC = () => {
                     <BookOpen className="w-5 h-5 text-white" />
                   </div>
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Or browse ArXiv Papers</h2>
-                  {loadingPapers && (
+                  {(loadingPapers || isRefreshing) && (
                     <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
                   )}
                 </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowCategorySelector(!showCategorySelector)}
-                        className="glass border-white/20 bg-white/10 backdrop-blur-xl"
-                      >
-                        <Settings2 className="w-4 h-4 mr-2" />
-                        Categories ({selectedCategories.length})
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Filter papers by ArXiv categories</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <div className="flex items-center gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRefreshPapers}
+                          disabled={loadingPapers || isRefreshing}
+                          className="glass border-white/20 bg-white/10 backdrop-blur-xl"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Refresh papers</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowCategorySelector(!showCategorySelector)}
+                          className="glass border-white/20 bg-white/10 backdrop-blur-xl"
+                        >
+                          <Settings2 className="w-4 h-4 mr-2" />
+                          Categories ({selectedCategories.length})
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Filter papers by ArXiv categories</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
               
               {/* Category Selector */}
@@ -586,9 +632,21 @@ export const Home: React.FC = () => {
 
               {/* Error Message */}
               {papersError && (
-                <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-                  <p className="text-sm text-red-800 dark:text-red-200">{papersError}</p>
+                <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <div className="flex items-center gap-3 mb-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                    <p className="text-sm text-red-800 dark:text-red-200 flex-grow">{papersError}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefreshPapers}
+                    disabled={loadingPapers || isRefreshing}
+                    className="bg-white dark:bg-gray-800 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    {isRefreshing ? 'Refreshing...' : 'Try Again'}
+                  </Button>
                 </div>
               )}
 
@@ -804,19 +862,30 @@ export const Home: React.FC = () => {
                   <BookOpen className="w-5 h-5 text-white" />
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Latest ArXiv Papers</h2>
-                {loadingPapers && (
+                {(loadingPapers || isRefreshing) && (
                   <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCategorySelector(!showCategorySelector)}
-                className="glass border-white/20 bg-white/10 backdrop-blur-xl"
-              >
-                <Settings2 className="w-4 h-4 mr-2" />
-                Categories ({selectedCategories.length})
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshPapers}
+                  disabled={loadingPapers || isRefreshing}
+                  className="glass border-white/20 bg-white/10 backdrop-blur-xl"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCategorySelector(!showCategorySelector)}
+                  className="glass border-white/20 bg-white/10 backdrop-blur-xl"
+                >
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  Categories ({selectedCategories.length})
+                </Button>
+              </div>
             </div>
             
             {/* Category Selector */}
@@ -880,9 +949,21 @@ export const Home: React.FC = () => {
 
             {/* Error Message */}
             {papersError && (
-              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-                <p className="text-sm text-red-800 dark:text-red-200">{papersError}</p>
+              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <p className="text-sm text-red-800 dark:text-red-200 flex-grow">{papersError}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshPapers}
+                  disabled={loadingPapers || isRefreshing}
+                  className="bg-white dark:bg-gray-800 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? 'Refreshing...' : 'Try Again'}
+                </Button>
               </div>
             )}
 
