@@ -1,0 +1,79 @@
+{
+    // GitHub Copilot Configuration for Redink
+    "github.copilot.enable": {
+        "*": true,
+        "yaml": true,
+        "plaintext": false,
+        "markdown": true
+    },
+    // Copilot suggestions configuration
+    "github.copilot.editor.enableCodeLens": true,
+    "github.copilot.editor.enableAutoCompletions": true,
+    "github.copilot.editor.enableCodeActions": true,
+    // Language-specific Copilot settings
+    "github.copilot.advanced": {
+        "debug.overrideEngine": "codex",
+        "debug.testOverrideProxyUrl": "",
+        "debug.overrideProxyUrl": "",
+        "inlineSuggestCount": 3,
+        "listCount": 10,
+        "length": 500
+    },
+    // File associations for better context
+    "files.associations": {
+        "*.cursorrules": "markdown",
+        ".cursorrules": "markdown",
+        "Cargo.toml": "toml",
+        "tauri.conf.json": "jsonc"
+    },
+    // Exclude patterns for cleaner workspace
+    "files.exclude": {
+        "**/target": true,
+        "**/node_modules": true,
+        "**/dist": true,
+        "**/.DS_Store": true,
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.vscode-test": true
+    },
+    // Search exclude patterns
+    "search.exclude": {
+        "**/target": true,
+        "**/node_modules": true,
+        "**/dist": true,
+        "**/coverage": true,
+        "**/build": true,
+        "**/.pnpm": true
+    },
+    // Language servers and extensions
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.cargo.features": "all",
+    "rust-analyzer.procMacro.enable": true,
+    "rust-analyzer.imports.granularity.group": "module",
+    // TypeScript configuration
+    "typescript.preferences.importModuleSpecifier": "relative",
+    "typescript.suggest.autoImports": true,
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    // Formatting
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit",
+        "source.organizeImports": "explicit"
+    },
+    // Tailwind CSS
+    "tailwindCSS.experimental.classRegex": [
+        [
+            "cva\\(([^)]*)\\)",
+            "[\"'`]([^\"'`]*).*?[\"'`]"
+        ],
+        [
+            "cn\\(([^)]*)\\)",
+            "(?:'|\"|`)([^']*)(?:'|\"|`)"
+        ]
+    ],
+    // AI assistance context
+    "github.copilot.chat.enabled": true,
+    "github.copilot.chat.welcomeMessage": "disabled"
+}

@@ -1,0 +1,139 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "tauri:build-debug",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/src-tauri"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "tauri:build-release",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "build",
+                "--release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/src-tauri"
+            },
+            "group": "build",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "tauri:dev",
+            "type": "shell",
+            "command": "pnpm",
+            "args": [
+                "tauri",
+                "dev"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "isBackground": true,
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": ".",
+                        "endsPattern": "."
+                    }
+                }
+            ]
+        },
+        {
+            "label": "frontend:dev",
+            "type": "shell",
+            "command": "pnpm",
+            "args": [
+                "dev"
+            ],
+            "group": "build",
+            "isBackground": true,
+            "problemMatcher": [
+                "$tsc",
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": ".",
+                        "endsPattern": "."
+                    }
+                }
+            ]
+        },
+        {
+            "label": "frontend:build",
+            "type": "shell",
+            "command": "pnpm",
+            "args": [
+                "build"
+            ],
+            "group": "build",
+            "problemMatcher": "$tsc"
+        },
+        {
+            "label": "rust:test",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "test"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/src-tauri"
+            },
+            "group": "test",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "rust:clippy",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "clippy",
+                "--all-targets",
+                "--all-features"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/src-tauri"
+            },
+            "group": "test",
+            "problemMatcher": "$rustc"
+        },
+        {
+            "label": "install:deps",
+            "type": "shell",
+            "command": "pnpm",
+            "args": [
+                "install"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}
