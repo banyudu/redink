@@ -1,27 +1,56 @@
 /**
- * ArXiv API Integration with Persistent Caching
+ * ArXiv API Integration with Rust Backend and Persistent Caching
  * 
- * Uses ArXiv API v1 (https://export.arxiv.org/api/query)
- * API Documentation: https://info.arxiv.org/help/api/index.html
+ * Uses Rust backend to fetch from ArXiv API v1 (https://export.arxiv.org/api/query)
+ * This avoids CORS issues and provides better error handling
  */
 
 import { BaseDirectory, exists, readTextFile, writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface ArxivPaper {
   id: string;
   title: string;
   authors: string;
   category: string;
-  publishedDate: string;
-  abstract: string;
-  downloadUrl: string;
-  pdfUrl: string;
+  publishedDate: string; // Note: Rust uses published_date, we map it here
+  abstract: string; // Note: Rust uses abstract_text, we map it here  
+  downloadUrl: string; // Note: Rust uses download_url, we map it here
+  pdfUrl: string; // Note: Rust uses pdf_url, we map it here
   categories: string[];
 }
 
-interface ArxivApiResponse {
-  papers: ArxivPaper[];
-  totalResults: number;
+interface RustArxivPaper {
+  id: string;
+  title: string;
+  authors: string;
+  category: string;
+  published_date: string;
+  abstract_text: string;
+  download_url: string;
+  pdf_url: string;
+  categories: string[];
+}
+
+interface ArxivSearchOptions {
+  maxResults?: number;
+  sortBy?: 'relevance' | 'lastUpdatedDate' | 'submittedDate';
+  sortOrder?: 'ascending' | 'descending';
+}
+
+// Map Rust response to TypeScript interface
+function mapRustPaper(rustPaper: RustArxivPaper): ArxivPaper {
+  return {
+    id: rustPaper.id,
+    title: rustPaper.title,
+    authors: rustPaper.authors,
+    category: rustPaper.category,
+    publishedDate: rustPaper.published_date,
+    abstract: rustPaper.abstract_text,
+    downloadUrl: rustPaper.download_url,
+    pdfUrl: rustPaper.pdf_url,
+    categories: rustPaper.categories
+  };
 }
 
 interface CachedArxivData {
@@ -29,7 +58,6 @@ interface CachedArxivData {
   timestamp: number;
 }
 
-const ARXIV_API_BASE = 'https://export.arxiv.org/api/query';
 const DEFAULT_MAX_RESULTS = 20;
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour for persistent cache
 const CACHE_DIR = 'redink/arxiv-cache';
@@ -56,88 +84,7 @@ export const ARXIV_CATEGORIES = {
 };
 
 /**
- * Parse ArXiv Atom feed XML response
- */
-function parseArxivResponse(xmlText: string): ArxivApiResponse {
-  const parser = new DOMParser();
-  const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-  
-  // Check for parsing errors
-  const parserError = xmlDoc.querySelector('parsererror');
-  if (parserError) {
-    throw new Error('Failed to parse ArXiv API response');
-  }
-  
-  const entries = xmlDoc.querySelectorAll('entry');
-  const totalResults = parseInt(
-    xmlDoc.querySelector('opensearch\\:totalResults, totalResults')?.textContent || '0',
-    10
-  );
-  
-  const papers: ArxivPaper[] = Array.from(entries).map(entry => {
-    const id = entry.querySelector('id')?.textContent?.split('/abs/')[1]?.split('v')[0] || '';
-    const title = entry.querySelector('title')?.textContent?.trim().replace(/\s+/g, ' ') || '';
-    const summary = entry.querySelector('summary')?.textContent?.trim().replace(/\s+/g, ' ') || '';
-    const published = entry.querySelector('published')?.textContent || '';
-    
-    // Get authors
-    const authorElements = entry.querySelectorAll('author name');
-    const authors = Array.from(authorElements)
-      .map(el => el.textContent?.trim())
-      .filter(Boolean)
-      .join(', ');
-    
-    // Get categories
-    const categoryElements = entry.querySelectorAll('category');
-    const categories = Array.from(categoryElements)
-      .map(el => el.getAttribute('term'))
-      .filter(Boolean) as string[];
-    
-    const primaryCategory = entry.querySelector('arxiv\\:primary_category, primary_category')
-      ?.getAttribute('term') || categories[0] || 'Unknown';
-    
-    // Get PDF URL
-    const pdfLink = Array.from(entry.querySelectorAll('link'))
-      .find(link => link.getAttribute('title') === 'pdf');
-    const pdfUrl = pdfLink?.getAttribute('href') || `https://arxiv.org/pdf/${id}.pdf`;
-    
-    return {
-      id,
-      title,
-      authors: authors || 'Unknown',
-      category: formatCategory(primaryCategory),
-      publishedDate: published.split('T')[0],
-      abstract: summary,
-      downloadUrl: pdfUrl,
-      pdfUrl,
-      categories
-    };
-  });
-  
-  return { papers, totalResults };
-}
-
-/**
- * Format category code to human-readable name
- */
-function formatCategory(category: string): string {
-  const categoryMap: Record<string, string> = {
-    'cs.AI': 'Artificial Intelligence',
-    'cs.CL': 'Computation and Language',
-    'cs.CV': 'Computer Vision',
-    'cs.LG': 'Machine Learning',
-    'cs.NE': 'Neural Networks',
-    'stat.ML': 'Machine Learning',
-    'math.CO': 'Combinatorics',
-    'physics.data-an': 'Data Analysis',
-    'quant-ph': 'Quantum Physics',
-  };
-  
-  return categoryMap[category] || category.split('.')[0].toUpperCase();
-}
-
-/**
- * Search ArXiv papers
+ * Search ArXiv papers using Rust backend
  */
 export async function searchArxivPapers(
   query: string,
@@ -160,87 +107,95 @@ export async function searchArxivPapers(
   }
   
   try {
-    // ArXiv API requires search_query to NOT be URL-encoded (keep + and : as-is)
-    // Only encode the query minimally - replace spaces with + but keep operators intact
-    const encodedQuery = query.replace(/ /g, '+');
-    
-    // Build URL manually to avoid over-encoding the search_query parameter
-    const url = `${ARXIV_API_BASE}?search_query=${encodedQuery}&start=0&max_results=${maxResults}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
-    console.log('[ArXiv API] Requesting papers...');
+    console.log('[ArXiv API] Requesting papers via Rust backend...');
     console.log('[ArXiv API] Query:', query);
-    console.log('[ArXiv API] Full URL:', url);
     
-    const response = await fetch(url);
-    console.log('[ArXiv API] Response status:', response.status, response.statusText);
+    const rustOptions: ArxivSearchOptions = {
+      maxResults,
+      sortBy,
+      sortOrder
+    };
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[ArXiv API] Error response:', errorText);
-      throw new Error(`ArXiv API error: ${response.status} ${response.statusText}`);
-    }
+    const rustPapers: RustArxivPaper[] = await invoke('search_arxiv_papers', {
+      query,
+      options: rustOptions
+    });
     
-    const xmlText = await response.text();
-    console.log('[ArXiv API] Received XML, length:', xmlText.length);
+    const papers = rustPapers.map(mapRustPaper);
     
-    const result = parseArxivResponse(xmlText);
-    
-    console.log(`[ArXiv API] Successfully parsed ${result.papers.length} papers`);
-    console.log('[ArXiv API] Total results available:', result.totalResults);
-    return result.papers;
+    console.log(`[ArXiv API] Successfully received ${papers.length} papers from Rust backend`);
+    return papers;
   } catch (error: any) {
     console.error('[ArXiv API] Search failed with error:', error);
-    console.error('[ArXiv API] Error details:', {
-      message: error?.message,
-      stack: error?.stack,
-      name: error?.name
-    });
-    throw error;
+    throw new Error(`ArXiv search failed: ${error.message || String(error)}`);
   }
 }
 
 /**
- * Get featured/popular papers from specific categories
+ * Get featured/popular papers from specific categories using Rust backend
  */
 export async function getFeaturedPapers(maxResults = 12): Promise<ArxivPaper[]> {
-  // Query popular AI/ML categories
-  const categories = [
-    'cat:cs.AI',
-    'cat:cs.LG',
-    'cat:cs.CL',
-    'cat:cs.CV'
-  ];
-  
-  const query = categories.join('+OR+');
-  
-  return searchArxivPapers(query, {
-    maxResults,
-    sortBy: 'submittedDate',
-    sortOrder: 'descending'
-  });
+  try {
+    console.log('[ArXiv API] Fetching featured papers via Rust backend...');
+    
+    const rustPapers: RustArxivPaper[] = await invoke('get_papers_by_categories', {
+      categories: ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV'],
+      maxResults
+    });
+    
+    const papers = rustPapers.map(mapRustPaper);
+    console.log(`[ArXiv API] Successfully received ${papers.length} featured papers`);
+    return papers;
+  } catch (error: any) {
+    console.error('[ArXiv API] Failed to get featured papers:', error);
+    throw new Error(`Failed to fetch featured papers: ${error.message || String(error)}`);
+  }
 }
 
 /**
- * Search papers by category
+ * Search papers by category using Rust backend
  */
 export async function searchByCategory(
   category: string,
   maxResults = DEFAULT_MAX_RESULTS
 ): Promise<ArxivPaper[]> {
-  return searchArxivPapers(`cat:${category}`, {
-    maxResults,
-    sortBy: 'submittedDate',
-    sortOrder: 'descending'
-  });
+  try {
+    console.log('[ArXiv API] Searching by category via Rust backend:', category);
+    
+    const rustPapers: RustArxivPaper[] = await invoke('get_papers_by_categories', {
+      categories: [category],
+      maxResults
+    });
+    
+    const papers = rustPapers.map(mapRustPaper);
+    console.log(`[ArXiv API] Successfully received ${papers.length} papers for category ${category}`);
+    return papers;
+  } catch (error: any) {
+    console.error('[ArXiv API] Failed to search by category:', error);
+    throw new Error(`Failed to search by category: ${error.message || String(error)}`);
+  }
 }
 
 /**
- * Get paper by ArXiv ID
+ * Get paper by ArXiv ID using Rust backend
  */
 export async function getPaperById(arxivId: string): Promise<ArxivPaper | null> {
   try {
-    const papers = await searchArxivPapers(`id:${arxivId}`, { maxResults: 1 });
-    return papers[0] || null;
-  } catch (error) {
+    console.log('[ArXiv API] Getting paper by ID via Rust backend:', arxivId);
+    
+    const rustPaper: RustArxivPaper | null = await invoke('get_paper_by_id', {
+      arxivId
+    });
+    
+    if (!rustPaper) {
+      console.log('[ArXiv API] No paper found for ID:', arxivId);
+      return null;
+    }
+    
+    const paper = mapRustPaper(rustPaper);
+    console.log('[ArXiv API] Successfully received paper:', paper.title);
+    return paper;
+  } catch (error: any) {
     console.error('[ArXiv API] Failed to get paper by ID:', error);
     return null;
   }
@@ -429,24 +384,27 @@ export async function getFeaturedPapersCached(maxResults = 12): Promise<ArxivPap
 }
 
 /**
- * Get latest papers from selected categories
+ * Get latest papers from selected categories using Rust backend
  */
 export async function getPapersByCategories(
   categories: string[],
   maxResults = 20
 ): Promise<ArxivPaper[]> {
-  if (categories.length === 0) {
-    return getFeaturedPapers(maxResults);
+  try {
+    console.log('[ArXiv API] Getting papers by categories via Rust backend:', categories);
+    
+    const rustPapers: RustArxivPaper[] = await invoke('get_papers_by_categories', {
+      categories,
+      maxResults
+    });
+    
+    const papers = rustPapers.map(mapRustPaper);
+    console.log(`[ArXiv API] Successfully received ${papers.length} papers for categories:`, categories);
+    return papers;
+  } catch (error: any) {
+    console.error('[ArXiv API] Failed to get papers by categories:', error);
+    throw new Error(`Failed to get papers by categories: ${error.message || String(error)}`);
   }
-  
-  // Build query for multiple categories
-  const query = categories.map(cat => `cat:${cat}`).join('+OR+');
-  
-  return searchArxivPapers(query, {
-    maxResults,
-    sortBy: 'submittedDate',
-    sortOrder: 'descending'
-  });
 }
 
 /**

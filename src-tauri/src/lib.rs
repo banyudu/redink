@@ -1,4 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod arxiv;
 mod vector_store;
 
 use std::sync::Arc;
@@ -32,6 +33,9 @@ pub fn run() {
             vector_store::vector_store_delete_document,
             vector_store::vector_store_clear_all,
             vector_store::vector_store_get_count,
+            arxiv::search_arxiv_papers,
+            arxiv::get_papers_by_categories,
+            arxiv::get_paper_by_id,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
