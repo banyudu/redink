@@ -6810,6 +6810,7 @@ dependencies = [
  "chrono",
  "futures",
  "lancedb",
+ "lazy_static",
  "quick-xml 0.36.2",
  "reqwest",
  "serde",

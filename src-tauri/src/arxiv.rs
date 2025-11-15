@@ -1,10 +1,19 @@
+use lazy_static::lazy_static;
 use quick_xml::events::Event;
 use quick_xml::Reader;
-use reqwest;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
-use tauri;
+use std::fs;
+
+lazy_static! {
+    static ref CATEGORY_MAP: HashMap<String, String> = {
+        let categories_json =
+            fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/categories.json"))
+                .expect("Failed to read categories.json");
+        serde_json::from_str(&categories_json).expect("Failed to parse categories.json")
+    };
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArxivPaper {
@@ -38,207 +47,15 @@ impl Default for ArxivSearchOptions {
 
 const ARXIV_API_BASE: &str = "https://export.arxiv.org/api/query";
 
-fn get_category_map() -> HashMap<&'static str, &'static str> {
-    let mut map = HashMap::new();
-
-    // Computer Science
-    map.insert("cs.AI", "Artificial Intelligence");
-    map.insert("cs.AR", "Hardware Architecture");
-    map.insert("cs.CC", "Computational Complexity");
-    map.insert("cs.CE", "Computational Engineering, Finance, and Science");
-    map.insert("cs.CG", "Computational Geometry");
-    map.insert("cs.CL", "Computation and Language");
-    map.insert("cs.CR", "Cryptography and Security");
-    map.insert("cs.CV", "Computer Vision and Pattern Recognition");
-    map.insert("cs.CY", "Computers and Society");
-    map.insert("cs.DB", "Databases");
-    map.insert("cs.DC", "Distributed, Parallel, and Cluster Computing");
-    map.insert("cs.DL", "Digital Libraries");
-    map.insert("cs.DM", "Discrete Mathematics");
-    map.insert("cs.DS", "Data Structures and Algorithms");
-    map.insert("cs.ET", "Emerging Technologies");
-    map.insert("cs.FL", "Formal Languages and Automata Theory");
-    map.insert("cs.GL", "General Literature");
-    map.insert("cs.GR", "Graphics");
-    map.insert("cs.GT", "Computer Science and Game Theory");
-    map.insert("cs.HC", "Human-Computer Interaction");
-    map.insert("cs.IR", "Information Retrieval");
-    map.insert("cs.IT", "Information Theory");
-    map.insert("cs.LG", "Machine Learning");
-    map.insert("cs.LO", "Logic in Computer Science");
-    map.insert("cs.MA", "Multiagent Systems");
-    map.insert("cs.MM", "Multimedia");
-    map.insert("cs.MS", "Mathematical Software");
-    map.insert("cs.NA", "Numerical Analysis");
-    map.insert("cs.NE", "Neural and Evolutionary Computing");
-    map.insert("cs.NI", "Networking and Internet Architecture");
-    map.insert("cs.OH", "Other Computer Science");
-    map.insert("cs.OS", "Operating Systems");
-    map.insert("cs.PF", "Performance");
-    map.insert("cs.PL", "Programming Languages");
-    map.insert("cs.RO", "Robotics");
-    map.insert("cs.SC", "Symbolic Computation");
-    map.insert("cs.SD", "Sound");
-    map.insert("cs.SE", "Software Engineering");
-    map.insert("cs.SI", "Social and Information Networks");
-    map.insert("cs.SY", "Systems and Control");
-
-    // Economics
-    map.insert("econ.EM", "Econometrics");
-    map.insert("econ.GN", "General Economics");
-    map.insert("econ.TH", "Theoretical Economics");
-
-    // Electrical Engineering and Systems Science
-    map.insert("eess.AS", "Audio and Speech Processing");
-    map.insert("eess.IV", "Image and Video Processing");
-    map.insert("eess.SP", "Signal Processing");
-    map.insert("eess.SY", "Systems and Control");
-
-    // Mathematics
-    map.insert("math.AC", "Commutative Algebra");
-    map.insert("math.AG", "Algebraic Geometry");
-    map.insert("math.AP", "Analysis of PDEs");
-    map.insert("math.AT", "Algebraic Topology");
-    map.insert("math.CA", "Classical Analysis and ODEs");
-    map.insert("math.CO", "Combinatorics");
-    map.insert("math.CT", "Category Theory");
-    map.insert("math.CV", "Complex Variables");
-    map.insert("math.DG", "Differential Geometry");
-    map.insert("math.DS", "Dynamical Systems");
-    map.insert("math.FA", "Functional Analysis");
-    map.insert("math.GM", "General Mathematics");
-    map.insert("math.GN", "General Topology");
-    map.insert("math.GR", "Group Theory");
-    map.insert("math.GT", "Geometric Topology");
-    map.insert("math.HO", "History and Overview");
-    map.insert("math.IT", "Information Theory");
-    map.insert("math.KT", "K-Theory and Homology");
-    map.insert("math.LO", "Logic");
-    map.insert("math.MG", "Metric Geometry");
-    map.insert("math.MP", "Mathematical Physics");
-    map.insert("math.NA", "Numerical Analysis");
-    map.insert("math.NT", "Number Theory");
-    map.insert("math.OA", "Operator Algebras");
-    map.insert("math.OC", "Optimization and Control");
-    map.insert("math.PR", "Probability");
-    map.insert("math.QA", "Quantum Algebra");
-    map.insert("math.RA", "Rings and Algebras");
-    map.insert("math.RT", "Representation Theory");
-    map.insert("math.SG", "Symplectic Geometry");
-    map.insert("math.SP", "Spectral Theory");
-    map.insert("math.ST", "Statistics Theory");
-
-    // Physics - Astrophysics
-    map.insert("astro-ph.CO", "Cosmology and Nongalactic Astrophysics");
-    map.insert("astro-ph.EP", "Earth and Planetary Astrophysics");
-    map.insert("astro-ph.GA", "Astrophysics of Galaxies");
-    map.insert("astro-ph.HE", "High Energy Astrophysical Phenomena");
-    map.insert(
-        "astro-ph.IM",
-        "Instrumentation and Methods for Astrophysics",
-    );
-    map.insert("astro-ph.SR", "Solar and Stellar Astrophysics");
-
-    // Physics - Condensed Matter
-    map.insert("cond-mat.dis-nn", "Disordered Systems and Neural Networks");
-    map.insert("cond-mat.mes-hall", "Mesoscale and Nanoscale Physics");
-    map.insert("cond-mat.mtrl-sci", "Materials Science");
-    map.insert("cond-mat.other", "Other Condensed Matter");
-    map.insert("cond-mat.quant-gas", "Quantum Gases");
-    map.insert("cond-mat.soft", "Soft Condensed Matter");
-    map.insert("cond-mat.stat-mech", "Statistical Mechanics");
-    map.insert("cond-mat.str-el", "Strongly Correlated Electrons");
-    map.insert("cond-mat.supr-con", "Superconductivity");
-
-    // Physics - General Relativity and Quantum Cosmology
-    map.insert("gr-qc", "General Relativity and Quantum Cosmology");
-
-    // Physics - High Energy Physics
-    map.insert("hep-ex", "High Energy Physics - Experiment");
-    map.insert("hep-lat", "High Energy Physics - Lattice");
-    map.insert("hep-ph", "High Energy Physics - Phenomenology");
-    map.insert("hep-th", "High Energy Physics - Theory");
-
-    // Physics - Nuclear
-    map.insert("nucl-ex", "Nuclear Experiment");
-    map.insert("nucl-th", "Nuclear Theory");
-
-    // Physics - Other
-    map.insert("physics.acc-ph", "Accelerator Physics");
-    map.insert("physics.ao-ph", "Atmospheric and Oceanic Physics");
-    map.insert("physics.app-ph", "Applied Physics");
-    map.insert("physics.atm-clus", "Atomic and Molecular Clusters");
-    map.insert("physics.atom-ph", "Atomic Physics");
-    map.insert("physics.bio-ph", "Biological Physics");
-    map.insert("physics.chem-ph", "Chemical Physics");
-    map.insert("physics.class-ph", "Classical Physics");
-    map.insert("physics.comp-ph", "Computational Physics");
-    map.insert(
-        "physics.data-an",
-        "Data Analysis, Statistics and Probability",
-    );
-    map.insert("physics.ed-ph", "Physics Education");
-    map.insert("physics.flu-dyn", "Fluid Dynamics");
-    map.insert("physics.gen-ph", "General Physics");
-    map.insert("physics.geo-ph", "Geophysics");
-    map.insert("physics.hist-ph", "History and Philosophy of Physics");
-    map.insert("physics.ins-det", "Instrumentation and Detectors");
-    map.insert("physics.med-ph", "Medical Physics");
-    map.insert("physics.optics", "Optics");
-    map.insert("physics.plasm-ph", "Plasma Physics");
-    map.insert("physics.pop-ph", "Popular Physics");
-    map.insert("physics.soc-ph", "Physics and Society");
-    map.insert("physics.space-ph", "Space Physics");
-
-    // Physics - Quantum Physics
-    map.insert("quant-ph", "Quantum Physics");
-
-    // Nonlinear Sciences
-    map.insert("nlin.AO", "Adaptation and Self-Organizing Systems");
-    map.insert("nlin.CD", "Chaotic Dynamics");
-    map.insert("nlin.CG", "Cellular Automata and Lattice Gases");
-    map.insert("nlin.PS", "Pattern Formation and Solitons");
-    map.insert("nlin.SI", "Exactly Solvable and Integrable Systems");
-
-    // Quantitative Biology
-    map.insert("q-bio.BM", "Biomolecules");
-    map.insert("q-bio.CB", "Cell Behavior");
-    map.insert("q-bio.GN", "Genomics");
-    map.insert("q-bio.MN", "Molecular Networks");
-    map.insert("q-bio.NC", "Neurons and Cognition");
-    map.insert("q-bio.OT", "Other Quantitative Biology");
-    map.insert("q-bio.PE", "Populations and Evolution");
-    map.insert("q-bio.QM", "Quantitative Methods");
-    map.insert("q-bio.SC", "Subcellular Processes");
-    map.insert("q-bio.TO", "Tissues and Organs");
-
-    // Quantitative Finance
-    map.insert("q-fin.CP", "Computational Finance");
-    map.insert("q-fin.EC", "Economics");
-    map.insert("q-fin.GN", "General Finance");
-    map.insert("q-fin.MF", "Mathematical Finance");
-    map.insert("q-fin.PM", "Portfolio Management");
-    map.insert("q-fin.PR", "Pricing of Securities");
-    map.insert("q-fin.RM", "Risk Management");
-    map.insert("q-fin.ST", "Statistical Finance");
-    map.insert("q-fin.TR", "Trading and Market Microstructure");
-
-    // Statistics
-    map.insert("stat.AP", "Applications");
-    map.insert("stat.CO", "Computation");
-    map.insert("stat.ME", "Methodology");
-    map.insert("stat.ML", "Machine Learning");
-    map.insert("stat.OT", "Other Statistics");
-    map.insert("stat.TH", "Statistics Theory");
-
-    map
+fn get_category_map() -> &'static HashMap<String, String> {
+    &CATEGORY_MAP
 }
 
 fn format_category(category: &str) -> String {
     let category_map = get_category_map();
     category_map
         .get(category)
-        .map(|&name| name.to_string())
+        .map(|name| name.to_string())
         .unwrap_or_else(|| {
             category
                 .split('.')
@@ -532,59 +349,17 @@ pub async fn get_paper_by_id(arxiv_id: String) -> Result<Option<ArxivPaper>, Str
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn test_parse_arxiv_xml_with_sample() {
-        let sample_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <title>ArXiv Query: search_query=all:deep learning&amp;id_list=&amp;start=0&amp;max_results=2</title>
-  <id>http://arxiv.org/api/query</id>
-  <updated>2024-01-15T00:00:00-05:00</updated>
-  <opensearch:totalResults xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">1234</opensearch:totalResults>
-  <opensearch:startIndex xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">0</opensearch:startIndex>
-  <opensearch:itemsPerPage xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">2</opensearch:itemsPerPage>
-  <entry>
-    <id>http://arxiv.org/abs/2311.18775v2</id>
-    <updated>2024-01-10T14:30:45Z</updated>
-    <published>2023-11-30T18:59:59Z</published>
-    <title>GPT-4 Vision Technical Report</title>
-    <summary>We present GPT-4V(ision), a multimodal model that combines text and vision capabilities. This technical report describes the model architecture and training methodology.</summary>
-    <author>
-      <name>OpenAI Team</name>
-    </author>
-    <author>
-      <name>Research Scientist</name>
-    </author>
-    <arxiv:doi xmlns:arxiv="http://arxiv.org/schemas/atom">10.1234/example</arxiv:doi>
-    <link title="doi" href="http://dx.doi.org/10.1234/example" rel="related"/>
-    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <link href="http://arxiv.org/abs/2311.18775v2" rel="alternate" type="text/html"/>
-    <link title="pdf" href="http://arxiv.org/pdf/2311.18775v2.pdf" rel="related" type="application/pdf"/>
-  </entry>
-  <entry>
-    <id>http://arxiv.org/abs/2401.12345v1</id>
-    <updated>2024-01-15T09:15:30Z</updated>
-    <published>2024-01-15T09:15:30Z</published>
-    <title>Deep Learning for Computer Vision: A Comprehensive Survey</title>
-    <summary>This paper provides a comprehensive survey of deep learning techniques applied to computer vision tasks, covering recent advances and future directions.</summary>
-    <author>
-      <name>John Doe</name>
-    </author>
-    <author>
-      <name>Jane Smith</name>
-    </author>
-    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
-    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
-    <link href="http://arxiv.org/abs/2401.12345v1" rel="alternate" type="text/html"/>
-    <link title="pdf" href="http://arxiv.org/pdf/2401.12345v1.pdf" rel="related" type="application/pdf"/>
-  </entry>
-</feed>"#;
+        let sample_xml = fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/mock/data/sample_arxiv.xml"
+        ))
+        .expect("Failed to read sample_arxiv.xml");
 
-        let result = parse_arxiv_xml(sample_xml);
+        let result = parse_arxiv_xml(&sample_xml);
         assert!(result.is_ok(), "XML parsing should succeed");
 
         let papers = result.unwrap();

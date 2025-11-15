@@ -37,4 +37,5 @@ futures = "0.3"
 reqwest = { version = "0.12", features = ["json"] }
 quick-xml = { version = "0.36", features = ["serialize"] }
 chrono = { version = "0.4", features = ["serde"] }
+lazy_static = "1.5.0"
 

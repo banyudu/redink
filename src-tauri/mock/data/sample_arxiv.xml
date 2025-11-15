@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>ArXiv Query: search_query=all:deep learning&amp;id_list=&amp;start=0&amp;max_results=2</title>
+  <id>http://arxiv.org/api/query</id>
+  <updated>2024-01-15T00:00:00-05:00</updated>
+  <opensearch:totalResults xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">1234</opensearch:totalResults>
+  <opensearch:startIndex xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">0</opensearch:startIndex>
+  <opensearch:itemsPerPage xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">2</opensearch:itemsPerPage>
+  <entry>
+    <id>http://arxiv.org/abs/2311.18775v2</id>
+    <updated>2024-01-10T14:30:45Z</updated>
+    <published>2023-11-30T18:59:59Z</published>
+    <title>GPT-4 Vision Technical Report</title>
+    <summary>We present GPT-4V(ision), a multimodal model that combines text and vision capabilities. This technical report describes the model architecture and training methodology.</summary>
+    <author>
+      <name>OpenAI Team</name>
+    </author>
+    <author>
+      <name>Research Scientist</name>
+    </author>
+    <arxiv:doi xmlns:arxiv="http://arxiv.org/schemas/atom">10.1234/example</arxiv:doi>
+    <link title="doi" href="http://dx.doi.org/10.1234/example" rel="related"/>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <link href="http://arxiv.org/abs/2311.18775v2" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2311.18775v2.pdf" rel="related" type="application/pdf"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2401.12345v1</id>
+    <updated>2024-01-15T09:15:30Z</updated>
+    <published>2024-01-15T09:15:30Z</published>
+    <title>Deep Learning for Computer Vision: A Comprehensive Survey</title>
+    <summary>This paper provides a comprehensive survey of deep learning techniques applied to computer vision tasks, covering recent advances and future directions.</summary>
+    <author>
+      <name>John Doe</name>
+    </author>
+    <author>
+      <name>Jane Smith</name>
+    </author>
+    <arxiv:primary_category xmlns:arxiv="http://arxiv.org/schemas/atom" term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <link href="http://arxiv.org/abs/2401.12345v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2401.12345v1.pdf" rel="related" type="application/pdf"/>
+  </entry>
+</feed>
