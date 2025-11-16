@@ -6,6 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:production": "tsc && vite build",
+    "build:debug": "tsc && vite build",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:debug": "tauri build --features debug-devtools",
     "version": "git add src-tauri/Cargo.toml src-tauri/Cargo.lock",
     "postversion": "git push --follow-tags",
     "preview": "vite preview",

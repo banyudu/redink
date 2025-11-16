@@ -46,8 +46,7 @@
         {
           "name": "osascript",
           "cmd": "osascript",
-          "args": true,
-          "sidecar": false
+          "args": true
         }
       ]
     }

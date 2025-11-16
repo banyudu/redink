@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { invoke } from '@tauri-apps/api/core';
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -16,12 +17,91 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useAppStore();
 
+  // Debug backdoor state - only enabled in development
+  const [clickCount, setClickCount] = useState(0);
+  const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [isModifierPressed, setIsModifierPressed] = useState(false);
+  const isDevelopment = import.meta.env.DEV;
+
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light");
     if (typeof document !== "undefined") {
       document.documentElement.classList.toggle("dark", theme === "light");
     }
   };
+
+  // Debug backdoor: Toggle devtools when Cmd/Ctrl + 5 clicks in 2 seconds (development only)
+  const handleLogoClick = useCallback(async (event: React.MouseEvent) => {
+    // Only enable debug backdoor in development mode
+    if (!isDevelopment) {
+      navigate("/");
+      return;
+    }
+
+    const isModifier = event.metaKey || event.ctrlKey; // Cmd on Mac, Ctrl on Windows/Linux
+    
+    if (isModifier) {
+      setIsModifierPressed(true);
+      const newClickCount = clickCount + 1;
+      setClickCount(newClickCount);
+      
+      console.log(`[Debug] Logo click ${newClickCount} with modifier key (DEV MODE)`);
+      
+      if (newClickCount === 1) {
+        // Start timer for 2-second window
+        clickTimerRef.current = setTimeout(() => {
+          setClickCount(0);
+          setIsModifierPressed(false);
+          console.log('[Debug] Reset click count after timeout');
+        }, 2000);
+      } else if (newClickCount >= 5) {
+        // Trigger debug mode
+        console.log('[Debug] Debug backdoor triggered in development mode!');
+        try {
+          await invoke('toggle_devtools');
+          console.log('[Debug] DevTools toggled successfully');
+        } catch (error) {
+          const errorMsg = error as string;
+          console.error('[Debug] Failed to toggle devtools:', errorMsg);
+          
+          // Show user-friendly message
+          if (errorMsg.includes('production')) {
+            alert('DevTools access is disabled in production builds for security reasons.');
+          } else {
+            alert(`Failed to open DevTools: ${errorMsg}`);
+          }
+        }
+        
+        // Reset state
+        setClickCount(0);
+        setIsModifierPressed(false);
+        if (clickTimerRef.current) {
+          clearTimeout(clickTimerRef.current);
+          clickTimerRef.current = null;
+        }
+      }
+    } else {
+      // Regular click - navigate home
+      navigate("/");
+    }
+  }, [navigate, clickCount, isDevelopment]);
+
+  // Reset click count if modifier is released
+  React.useEffect(() => {
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (!event.metaKey && !event.ctrlKey && isModifierPressed) {
+        setIsModifierPressed(false);
+        setClickCount(0);
+        if (clickTimerRef.current) {
+          clearTimeout(clickTimerRef.current);
+          clickTimerRef.current = null;
+        }
+      }
+    };
+
+    window.addEventListener('keyup', handleKeyUp);
+    return () => window.removeEventListener('keyup', handleKeyUp);
+  }, [isModifierPressed]);
 
   return (
     <nav className="w-full glass border-0 border-b border-white/20 backdrop-blur-xl shadow-lg relative overflow-hidden animate-slide-in">
@@ -30,9 +110,16 @@ export const Navbar: React.FC = () => {
       
       <div className="mx-auto flex h-16 items-center justify-between px-4 lg:px-16 relative z-10">
         {/* Logo section with gradient text */}
-        <div className="flex items-center gap-3 group cursor-pointer" onClick={() => navigate("/")}>
+        <div 
+          className="flex items-center gap-3 group cursor-pointer select-none" 
+          onClick={handleLogoClick}
+          title={isDevelopment && isModifierPressed ? `Debug mode: ${clickCount}/5 clicks` : "Navigate to Home"}
+        >
           <div className="relative">
             <img src="/logo.png" alt="Logo" className="w-8 h-8 bg-transparent" />
+            {isDevelopment && isModifierPressed && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+            )}
           </div>
           <span className="font-bold text-xl text-gradient bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             {t("app.name")}

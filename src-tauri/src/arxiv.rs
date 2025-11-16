@@ -239,17 +239,49 @@ async fn fetch_arxiv_papers(
 
     println!("[ArXiv Rust] Fetching from URL: {}", url);
 
-    let client = reqwest::Client::new();
-    let response = client.get(&url).send().await?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let response = client.get(&url).send().await.map_err(|e| {
+        if e.is_timeout() {
+            "Request timed out. Please check your internet connection and try again.".to_string()
+        } else if e.is_connect() {
+            "Failed to connect to ArXiv. Please check your internet connection.".to_string()
+        } else {
+            format!("Network error: {}", e)
+        }
+    })?;
 
     if !response.status().is_success() {
-        return Err(format!("ArXiv API error: {}", response.status()).into());
+        let status = response.status();
+        let error_msg = match status.as_u16() {
+            429 => "Too many requests to ArXiv. Please wait a moment and try again.".to_string(),
+            500..=599 => {
+                "ArXiv service is temporarily unavailable. Please try again later.".to_string()
+            }
+            _ => format!(
+                "ArXiv API error: {} ({})",
+                status.canonical_reason().unwrap_or("Unknown"),
+                status
+            ),
+        };
+        return Err(error_msg.into());
     }
 
-    let xml_content = response.text().await?;
+    let xml_content = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response from ArXiv: {}", e))?;
     println!("[ArXiv Rust] Received XML, length: {}", xml_content.len());
 
-    let papers = parse_arxiv_xml(&xml_content)?;
+    if xml_content.is_empty() {
+        return Err("Received empty response from ArXiv. Please try again.".into());
+    }
+
+    let papers = parse_arxiv_xml(&xml_content)
+        .map_err(|e| format!("Failed to parse ArXiv response: {}", e))?;
     println!("[ArXiv Rust] Parsed {} papers", papers.len());
 
     Ok(papers)
@@ -271,8 +303,22 @@ pub async fn search_arxiv_papers(
             Ok(papers)
         }
         Err(e) => {
-            println!("[ArXiv Rust] Error fetching papers: {}", e);
-            Err(e.to_string())
+            let error_msg = e.to_string();
+            println!("[ArXiv Rust] Error fetching papers: {}", error_msg);
+
+            // Provide more user-friendly error messages
+            let user_error = if error_msg.contains("timeout") {
+                "Request timed out. Please check your internet connection and try again."
+                    .to_string()
+            } else if error_msg.contains("connect") {
+                "Unable to connect to ArXiv. Please check your internet connection.".to_string()
+            } else if error_msg.contains("DNS") {
+                "DNS resolution failed. Please check your network settings.".to_string()
+            } else {
+                error_msg
+            };
+
+            Err(user_error)
         }
     }
 }

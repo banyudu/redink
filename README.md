@@ -62,13 +62,38 @@ pnpm dev
 pnpm tauri dev
 ```
 
+### Debug Features (Development Only)
+
+⚠️ **Security Note**: Debug features are automatically disabled in production builds for security reasons.
+
+#### DevTools Access Backdoor
+In development mode, you can access DevTools using a secret combination:
+1. Hold `Cmd` (macOS) or `Ctrl` (Windows/Linux)
+2. Click the **Redink logo** in the top-left corner **5 times** within **2 seconds**
+3. DevTools will open (when implementation is complete)
+
+**Visual Feedback**:
+- A red pulsing dot appears next to the logo when the modifier key is held
+- The title tooltip shows current click progress
+
+**Security**: This backdoor is completely disabled in production builds to prevent unauthorized access.
+
+#### Enhanced Error Handling
+- **Detailed error messages** for ArXiv API failures
+- **Toast notifications** for better error visibility
+- **Automatic retry buttons** for failed operations
+- **Console logging** with detailed error context
+
 ### Building
 ```bash
 # Build the frontend
 pnpm build
 
-# Build Tauri app for production
+# Build Tauri app for production (no debug features)
 pnpm tauri build
+
+# Build Tauri app with debug features (for testing)
+pnpm tauri:build:debug
 ```
 
 ### Release Management

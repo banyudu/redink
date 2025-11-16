@@ -11,6 +11,38 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+// Only include devtools functionality in debug builds
+#[cfg(debug_assertions)]
+#[tauri::command]
+async fn toggle_devtools(_window: tauri::Window) -> Result<(), String> {
+    // In debug builds, try to open devtools
+    // Note: devtools API may not be available in all Tauri versions
+    // For now, we'll use a workaround approach
+    println!("[Debug] DevTools toggle requested in debug build");
+
+    // Try to use the window's native devtools functionality
+    // This is a placeholder implementation - the exact API may vary
+    match std::env::var("TAURI_ENV") {
+        Ok(env) if env == "dev" => {
+            println!("[Debug] Development environment detected, DevTools access allowed");
+            // TODO: Implement actual devtools toggle when API is stable
+            Ok(())
+        }
+        _ => {
+            println!("[Debug] DevTools toggle not yet fully implemented");
+            Err("DevTools functionality is not yet fully implemented".to_string())
+        }
+    }
+}
+
+// Stub implementation for release builds
+#[cfg(not(debug_assertions))]
+#[tauri::command]
+async fn toggle_devtools(_window: tauri::Window) -> Result<(), String> {
+    // In production builds, deny access to devtools for security
+    println!("[Security] DevTools access denied in production build");
+    Err("DevTools access is disabled in production builds for security reasons".to_string())
+}
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let vector_store_state = Arc::new(Mutex::new(VectorStoreState::new()));
@@ -26,6 +58,7 @@ pub fn run() {
         .manage(vector_store_state)
         .invoke_handler(tauri::generate_handler![
             greet,
+            toggle_devtools,
             vector_store::vector_store_initialize,
             vector_store::vector_store_add_chunks,
             vector_store::vector_store_search,

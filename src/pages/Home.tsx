@@ -1,50 +1,51 @@
-import React, { useCallback, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAppStore } from "../store";
-import { openPdfByPath, openArxivPaperFromObject } from "../lib/pdf-opener";
-import { cacheManager, type RecentFile } from "../lib/cache";
-import { storageManager } from "../lib/storage";
-import { 
-  searchArxivPapersCached,
-  getPapersByCategoriesCached,
-  arxivCache,
-  ARXIV_CATEGORIES,
-  type ArxivPaper
-} from "../lib/arxiv";
-import { 
-  Upload, 
-  Search,
-  Clock,
-  BookOpen,
-  Download,
-  Loader2,
-  FolderOpen,
+import { whisper } from "@/lib/utils";
+import {
   AlertCircle,
-  Settings2,
-  X,
+  BookOpen,
   Check,
-  Trash2,
-  MessageSquare,
   ChevronDown,
   ChevronUp,
-  RefreshCw
+  Clock,
+  Download,
+  FolderOpen,
+  Loader2,
+  MessageSquare,
+  RefreshCw,
+  Search,
+  Settings2,
+  Trash2,
+  Upload,
+  X
 } from "lucide-react";
+import React, { useCallback, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { ToastContainer, useToast } from "../components/ui/toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
-import { whisper } from "@/lib/utils";
+import {
+  ARXIV_CATEGORIES,
+  arxivCache,
+  getPapersByCategoriesCached,
+  searchArxivPapersCached,
+  type ArxivPaper
+} from "../lib/arxiv";
+import { cacheManager, type RecentFile } from "../lib/cache";
+import { openArxivPaperFromObject, openPdfByPath } from "../lib/pdf-opener";
+import { storageManager } from "../lib/storage";
+import { useAppStore } from "../store";
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Store hooks
   const recentFiles = useAppStore((s) => s.recentFiles);
   const setRecentFiles = useAppStore((s) => s.setRecentFiles);
   const addRecentFile = useAppStore((s) => s.addRecentFile);
   const setCurrentPaper = useAppStore((s) => s.setCurrentPaper);
   const setLastSelectedPdfPath = useAppStore((s) => s.setLastSelectedPdfPath);
-  
+
   // State
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -62,6 +63,9 @@ export const Home: React.FC = () => {
   const [showAllRecentFiles, setShowAllRecentFiles] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Toast notifications
+  const { toasts, addToast, removeToast } = useToast();
+
   // Load recent files, preferences, and initialize storage on mount
   React.useEffect(() => {
     const initialize = async () => {
@@ -70,11 +74,11 @@ export const Home: React.FC = () => {
         await storageManager.initialize();
         const cachedFiles = cacheManager.getRecentFiles(); // Get all recent files
         setRecentFiles(cachedFiles);
-        
+
         // Load user preferences for arXiv categories
         const prefs = storageManager.getPreferences();
         console.log('[Home] Loaded user preferences:', prefs);
-        
+
         // Set categories - ensure we have at least default categories
         if (prefs.arxivCategories && prefs.arxivCategories.length > 0) {
           setSelectedCategories(prefs.arxivCategories);
@@ -97,22 +101,22 @@ export const Home: React.FC = () => {
   // Function to load ArXiv papers
   const loadPapers = useCallback(async (forceRefresh = false) => {
     if (selectedCategories.length === 0) return; // Wait for categories to load
-    
+
     setPapersError(null);
     let hasCachedData = false;
-    
+
     if (forceRefresh) {
       setIsRefreshing(true);
       setLoadingPapers(true);
     }
-    
+
     try {
       if (!forceRefresh) {
         // First, try to load cached data immediately (don't show loading if we have cached data)
         const sortedCategories = [...selectedCategories].sort();
         const cacheKey = `categories_${sortedCategories.join('_')}_20`;
         const cached = await arxivCache.get(cacheKey);
-        
+
         if (cached && cached.length > 0) {
           // Show cached data immediately
           setArxivPapers(cached);
@@ -125,7 +129,7 @@ export const Home: React.FC = () => {
           console.log('[Home] No cached data, fetching from ArXiv...');
         }
       }
-      
+
       // Fetch fresh data (this will use cache if available and valid, unless forceRefresh is true)
       const papers = await getPapersByCategoriesCached(selectedCategories, 20);
       setArxivPapers(papers);
@@ -133,7 +137,30 @@ export const Home: React.FC = () => {
       console.log('[Home] Updated with papers for categories:', selectedCategories, 'count:', papers.length);
     } catch (error: any) {
       console.error('[Home] Failed to load papers:', error);
-      setPapersError('Failed to load ArXiv papers. Please try again later.');
+      const errorMessage = error.message || 'Unknown error occurred';
+      console.error('[Home] Detailed error info:', {
+        originalError: error,
+        message: errorMessage,
+        stack: error.stack,
+        selectedCategories,
+        forceRefresh
+      });
+      setPapersError(`Failed to load ArXiv papers: ${errorMessage}. Please check your internet connection and try again.`);
+
+      // Show error toast notification
+      addToast({
+        title: 'Failed to load papers',
+        message: `Error: ${errorMessage}. Please check your internet connection and try again.`,
+        type: 'error',
+        duration: 8000,
+        actions: [
+          {
+            label: 'Retry',
+            onClick: () => handleRefreshPapers()
+          }
+        ]
+      });
+
       // Only clear data if we don't have cached data
       if (!hasCachedData) {
         setArxivPapers([]);
@@ -156,7 +183,7 @@ export const Home: React.FC = () => {
     } catch (error) {
       console.error('[Home] Failed to clear cache:', error);
     }
-    
+
     await loadPapers(true);
   }, [loadPapers]);
 
@@ -171,18 +198,18 @@ export const Home: React.FC = () => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
+
     // If query is empty, show featured papers
     if (!arxivQuery.trim()) {
       setFilteredPapers(arxivPapers);
       return;
     }
-    
+
     // Debounce search - wait 500ms after user stops typing
     searchTimeoutRef.current = setTimeout(async () => {
       setLoadingPapers(true);
       setPapersError(null);
-      
+
       try {
         // Build search query for title, author, or abstract
         const searchQuery = `all:${arxivQuery}`;
@@ -191,13 +218,29 @@ export const Home: React.FC = () => {
         console.log('[Home] Search results:', papers.length);
       } catch (error: any) {
         console.error('[Home] Search failed:', error);
-        setPapersError('Search failed. Please try again.');
+        const errorMessage = error.message || 'Unknown search error';
+        console.error('[Home] Detailed search error info:', {
+          originalError: error,
+          message: errorMessage,
+          stack: error.stack,
+          searchQuery: `all:${arxivQuery}`
+        });
+        setPapersError(`Search failed: ${errorMessage}. Please try again with different keywords.`);
+
+        // Show search error toast notification
+        addToast({
+          title: 'Search failed',
+          message: `Error: ${errorMessage}. Please try different keywords or check your connection.`,
+          type: 'error',
+          duration: 6000
+        });
+
         setFilteredPapers([]);
       } finally {
         setLoadingPapers(false);
       }
     }, 500);
-    
+
     // Cleanup timeout on unmount
     return () => {
       if (searchTimeoutRef.current) {
@@ -209,7 +252,7 @@ export const Home: React.FC = () => {
   // Process PDF file and navigate to chat
   const processPdfFile = useCallback(async (filePath: string) => {
     whisper('filePath is: ', filePath);
-    
+
     try {
       await openPdfByPath(filePath, {
         addRecentFile,
@@ -238,19 +281,19 @@ export const Home: React.FC = () => {
   // Handle file selection via Tauri dialog
   const handleFileSelect = useCallback(async () => {
     console.log('[DEBUG] handleFileSelect called - opening Tauri file dialog');
-    
+
     try {
       const { open } = await import("@tauri-apps/plugin-dialog");
       console.log('[DEBUG] Tauri dialog imported successfully');
-      
-      const filePath = await open({ 
-        multiple: false, 
-        title: "Select a PDF", 
-        filters: [{ name: "PDF", extensions: ["pdf"] }] 
+
+      const filePath = await open({
+        multiple: false,
+        title: "Select a PDF",
+        filters: [{ name: "PDF", extensions: ["pdf"] }]
       });
-      
+
       console.log('[DEBUG] Dialog result:', filePath);
-      
+
       if (typeof filePath === "string" && filePath.endsWith(".pdf")) {
         console.log('[DEBUG] Valid PDF selected, processing:', filePath);
         await processPdfFile(filePath);
@@ -281,7 +324,7 @@ export const Home: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     console.log('[DEBUG] File dropped');
     // Note: In Tauri, drag & drop may not work the same as web
     // For now, open file dialog as fallback
@@ -297,7 +340,7 @@ export const Home: React.FC = () => {
   // Remove recent file
   const handleRemoveRecentFile = useCallback(async (file: RecentFile, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent file selection when clicking delete
-    
+
     try {
       await cacheManager.removeRecentFile(file.path);
       // Update the UI by removing from the list
@@ -314,7 +357,7 @@ export const Home: React.FC = () => {
   const getPaperFilePath = useCallback((paper: ArxivPaper): string => {
     const storagePath = storageManager.getStoragePath();
     if (!storagePath) return '';
-    
+
     const sanitizedArxivId = paper.id.replace(/\//g, '_');
     const sanitizedTitle = paper.title
       .replace(/[<>:"/\\|?*]/g, '_')
@@ -330,7 +373,7 @@ export const Home: React.FC = () => {
   const checkDownloadedPapers = useCallback(async (papers: ArxivPaper[]) => {
     const { exists } = await import("@tauri-apps/plugin-fs");
     const downloaded = new Set<string>();
-    
+
     for (const paper of papers) {
       const filePath = getPaperFilePath(paper);
       if (filePath) {
@@ -343,7 +386,7 @@ export const Home: React.FC = () => {
         }
       }
     }
-    
+
     setDownloadedPapers(downloaded);
   }, [getPaperFilePath]);
 
@@ -398,7 +441,7 @@ export const Home: React.FC = () => {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
+
     if (days === 0) return 'Today';
     if (days === 1) return 'Yesterday';
     if (days < 7) return `${days} days ago`;
@@ -411,10 +454,10 @@ export const Home: React.FC = () => {
       const newCategories = prev.includes(category)
         ? prev.filter(c => c !== category)
         : [...prev, category];
-      
+
       // Save to preferences
       storageManager.updateArxivCategories(newCategories);
-      
+
       return newCategories;
     });
   }, []);
@@ -435,7 +478,7 @@ export const Home: React.FC = () => {
             <div className="absolute inset-0 w-12 h-12 bg-blue-600/20 rounded-full blur-xl"></div>
           </div>
         </div>
-        
+
         <h1 className="text-4xl font-bold text-gradient bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
           Select a Document
         </h1>
@@ -450,11 +493,10 @@ export const Home: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl">
             <div
-              className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 ${
-                dragActive
+              className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 ${dragActive
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                   : 'border-gray-300 dark:border-gray-600'
-              } ${loading ? 'pointer-events-none opacity-50' : ''}`}
+                } ${loading ? 'pointer-events-none opacity-50' : ''}`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
@@ -471,7 +513,7 @@ export const Home: React.FC = () => {
                 }}
                 className="hidden"
               />
-              
+
               {loading ? (
                 <div className="flex items-center justify-center gap-3">
                   <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
@@ -570,7 +612,7 @@ export const Home: React.FC = () => {
                   </TooltipProvider>
                 </div>
               </div>
-              
+
               {/* Category Selector */}
               {showCategorySelector && (
                 <div className="mb-6 p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-white/20">
@@ -602,11 +644,10 @@ export const Home: React.FC = () => {
                       <button
                         key={code}
                         onClick={() => toggleCategory(code)}
-                        className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center justify-between ${
-                          selectedCategories.includes(code)
+                        className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center justify-between ${selectedCategories.includes(code)
                             ? 'bg-orange-500 text-white'
                             : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-gray-600'
-                        }`}
+                          }`}
                       >
                         <span className="truncate">{name}</span>
                         {selectedCategories.includes(code) && (
@@ -670,56 +711,55 @@ export const Home: React.FC = () => {
                   </div>
                 ) : (
                   filteredPapers.map((paper) => (
-                  <div
-                    key={paper.id}
-                    className={`p-4 border border-white/20 rounded-lg hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all duration-200 group ${
-                      downloadingPaper === paper.id ? 'opacity-75' : ''
-                    }`}
-                  >
-                    <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2 mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400">
-                      {paper.title}
-                    </h4>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">
-                      <strong>Authors:</strong> {paper.authors}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">
-                      {paper.abstract}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-xs text-gray-500">
-                          {new Date(paper.publishedDate).toLocaleDateString()}
-                        </span>
-                        <span className="text-xs text-orange-600 font-medium">
-                          {paper.category}
-                        </span>
+                    <div
+                      key={paper.id}
+                      className={`p-4 border border-white/20 rounded-lg hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all duration-200 group ${downloadingPaper === paper.id ? 'opacity-75' : ''
+                        }`}
+                    >
+                      <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2 mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400">
+                        {paper.title}
+                      </h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">
+                        <strong>Authors:</strong> {paper.authors}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">
+                        {paper.abstract}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-500">
+                            {new Date(paper.publishedDate).toLocaleDateString()}
+                          </span>
+                          <span className="text-xs text-orange-600 font-medium">
+                            {paper.category}
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => downloadedPapers.has(paper.id) ? handleContinueChat(paper) : handleArxivDownload(paper)}
+                          disabled={downloadingPaper === paper.id || loading}
+                          className="text-xs h-7 px-3 glass border-white/20 bg-white/10 backdrop-blur-xl hover:bg-orange-50 dark:hover:bg-orange-900/30 disabled:opacity-50"
+                        >
+                          {downloadingPaper === paper.id ? (
+                            <>
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              Downloading...
+                            </>
+                          ) : downloadedPapers.has(paper.id) ? (
+                            <>
+                              <MessageSquare className="w-3 h-3 mr-1" />
+                              Continue Chat
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-3 h-3 mr-1" />
+                              Download & Chat
+                            </>
+                          )}
+                        </Button>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => downloadedPapers.has(paper.id) ? handleContinueChat(paper) : handleArxivDownload(paper)}
-                        disabled={downloadingPaper === paper.id || loading}
-                        className="text-xs h-7 px-3 glass border-white/20 bg-white/10 backdrop-blur-xl hover:bg-orange-50 dark:hover:bg-orange-900/30 disabled:opacity-50"
-                      >
-                        {downloadingPaper === paper.id ? (
-                          <>
-                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                            Downloading...
-                          </>
-                        ) : downloadedPapers.has(paper.id) ? (
-                          <>
-                            <MessageSquare className="w-3 h-3 mr-1" />
-                            Continue Chat
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-3 h-3 mr-1" />
-                            Download & Chat
-                          </>
-                        )}
-                      </Button>
                     </div>
-                  </div>
                   ))
                 )}
               </div>
@@ -752,9 +792,8 @@ export const Home: React.FC = () => {
               {(showAllRecentFiles ? recentFiles : recentFiles.slice(0, 6)).map((file) => (
                 <div
                   key={file.id}
-                  className={`relative p-4 border border-white/20 rounded-lg cursor-pointer transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 group ${
-                    loadingFile === file.path ? 'opacity-50 pointer-events-none' : ''
-                  }`}
+                  className={`relative p-4 border border-white/20 rounded-lg cursor-pointer transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 group ${loadingFile === file.path ? 'opacity-50 pointer-events-none' : ''
+                    }`}
                   onClick={() => handleRecentFileSelect(file)}
                 >
                   {/* Delete button - top right corner */}
@@ -773,7 +812,7 @@ export const Home: React.FC = () => {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  
+
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0">
                       <img src="/arxiv.png" alt="ArXiv" className="w-5 h-5" />
@@ -797,11 +836,10 @@ export const Home: React.FC = () => {
 
               {/* Compact File Uploader Card */}
               <div
-                className={`p-4 border-2 border-dashed rounded-lg transition-all duration-300 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 flex items-center justify-center ${
-                  dragActive
+                className={`p-4 border-2 border-dashed rounded-lg transition-all duration-300 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 flex items-center justify-center ${dragActive
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-gray-300 dark:border-gray-600'
-                } ${loading ? 'pointer-events-none opacity-50' : ''}`}
+                  } ${loading ? 'pointer-events-none opacity-50' : ''}`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
@@ -818,7 +856,7 @@ export const Home: React.FC = () => {
                   }}
                   className="hidden"
                 />
-                
+
                 <div className="text-center">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-2">
                     <Upload className="w-5 h-5 text-white" />
@@ -887,7 +925,7 @@ export const Home: React.FC = () => {
                 </Button>
               </div>
             </div>
-            
+
             {/* Category Selector */}
             {showCategorySelector && (
               <div className="mb-6 p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-white/20">
@@ -919,11 +957,10 @@ export const Home: React.FC = () => {
                     <button
                       key={code}
                       onClick={() => toggleCategory(code)}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center justify-between ${
-                        selectedCategories.includes(code)
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center justify-between ${selectedCategories.includes(code)
                           ? 'bg-orange-500 text-white'
                           : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-gray-600'
-                      }`}
+                        }`}
                     >
                       <span className="truncate">{name}</span>
                       {selectedCategories.includes(code) && (
@@ -989,9 +1026,8 @@ export const Home: React.FC = () => {
                 filteredPapers.map((paper) => (
                   <div
                     key={paper.id}
-                    className={`p-4 border border-white/20 rounded-lg hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all duration-200 group flex flex-col ${
-                      downloadingPaper === paper.id ? 'opacity-75' : ''
-                    }`}
+                    className={`p-4 border border-white/20 rounded-lg hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all duration-200 group flex flex-col ${downloadingPaper === paper.id ? 'opacity-75' : ''
+                      }`}
                   >
                     <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2 mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400">
                       {paper.title}
@@ -1049,6 +1085,9 @@ export const Home: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 };
