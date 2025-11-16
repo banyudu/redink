@@ -80,26 +80,23 @@ fn parse_arxiv_xml(xml_content: &str) -> Result<Vec<ArxivPaper>, Box<dyn Error>>
                 let element_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                 current_text.clear();
 
-                match element_name.as_str() {
-                    "entry" => {
-                        in_entry = true;
-                        current_paper = Some(ArxivPaper {
-                            id: String::new(),
-                            title: String::new(),
-                            authors: String::new(),
-                            category: String::new(),
-                            published_date: String::new(),
-                            abstract_text: String::new(),
-                            download_url: String::new(),
-                            pdf_url: String::new(),
-                            categories: Vec::new(),
-                        });
-                        authors.clear();
-                        categories.clear();
-                        primary_category.clear();
-                        pdf_url.clear();
-                    }
-                    _ => {}
+                if element_name.as_str() == "entry" {
+                    in_entry = true;
+                    current_paper = Some(ArxivPaper {
+                        id: String::new(),
+                        title: String::new(),
+                        authors: String::new(),
+                        category: String::new(),
+                        published_date: String::new(),
+                        abstract_text: String::new(),
+                        download_url: String::new(),
+                        pdf_url: String::new(),
+                        categories: Vec::new(),
+                    });
+                    authors.clear();
+                    categories.clear();
+                    primary_category.clear();
+                    pdf_url.clear();
                 }
             }
             Event::Empty(ref e) => {

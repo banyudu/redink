@@ -805,7 +805,7 @@ export const Home: React.FC = () => {
               {recentFiles.slice(0, visibleRecentFilesCount).map((file) => (
                 <div
                   key={file.id}
-                  className={`flex items-center gap-4 px-2 py-0.5 border border-white/20 rounded-lg cursor-pointer transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 group ${loadingFile === file.path ? 'opacity-50 pointer-events-none' : ''
+                  className={`flex items-center gap-4 px-2 py-0.5 rounded-lg cursor-pointer transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 group ${loadingFile === file.path ? 'opacity-50 pointer-events-none' : ''
                     }`}
                   onClick={() => handleRecentFileSelect(file)}
                 >
