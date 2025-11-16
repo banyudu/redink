@@ -14,8 +14,7 @@
     "version": "git add src-tauri/Cargo.toml src-tauri/Cargo.lock",
     "postversion": "git push --follow-tags",
     "preview": "vite preview",
-    "release:draft": "node scripts/draft-release.js",
-    "release:publish": "node scripts/publish-release.js",
+    "release": "node scripts/draft-release.js",
     "tauri": "tauri"
   },
   "dependencies": {
