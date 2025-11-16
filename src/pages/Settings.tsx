@@ -1,8 +1,8 @@
-import React from "react";
-import { useAppStore } from "../store";
-import { Button } from "../components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
-import { UpdateChecker } from "../components/UpdateChecker";
+import React from 'react';
+import { useAppStore } from '../store';
+import { Button } from '../components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
+import { UpdateChecker } from '../components/UpdateChecker';
 import { 
   Settings as SettingsIcon, 
   Palette, 
@@ -14,8 +14,8 @@ import {
   Monitor,
   Check,
   ChevronRight,
-  Download
-} from "lucide-react";
+  Download,
+} from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const { theme, language, setTheme, setLanguage } = useAppStore();
@@ -26,35 +26,35 @@ export const Settings: React.FC = () => {
       title: 'Appearance',
       description: 'Customize the look and feel of your application',
       icon: Palette,
-      gradient: 'from-purple-500 to-pink-600'
+      gradient: 'from-purple-500 to-pink-600',
     },
     {
       id: 'language',
       title: 'Language & Region',
       description: 'Set your preferred language and regional settings',
       icon: Globe,
-      gradient: 'from-blue-500 to-cyan-600'
+      gradient: 'from-blue-500 to-cyan-600',
     },
     {
       id: 'models',
       title: 'AI Models',
       description: 'Configure and manage your local LLM models',
       icon: Brain,
-      gradient: 'from-emerald-500 to-teal-600'
+      gradient: 'from-emerald-500 to-teal-600',
     },
     {
       id: 'storage',
       title: 'Storage & Data',
       description: 'Manage your local storage and database settings',
       icon: Database,
-      gradient: 'from-orange-500 to-red-600'
-    }
+      gradient: 'from-orange-500 to-red-600',
+    },
   ];
 
   const themeOptions = [
     { value: 'light', label: 'Light', icon: Sun, description: 'Clean and bright interface' },
     { value: 'dark', label: 'Dark', icon: Moon, description: 'Easy on the eyes' },
-    { value: 'system', label: 'System', icon: Monitor, description: 'Follows your system preference' }
+    { value: 'system', label: 'System', icon: Monitor, description: 'Follows your system preference' },
   ];
 
   return (
@@ -131,7 +131,7 @@ export const Settings: React.FC = () => {
           <div className="space-y-3">
             {[
               { value: 'en', label: 'English', flag: '🇺🇸' },
-              { value: 'zh', label: '中文', flag: '🇨🇳' }
+              { value: 'zh', label: '中文', flag: '🇨🇳' },
             ].map((lang) => (
               <div
                 key={lang.value}
@@ -172,7 +172,7 @@ export const Settings: React.FC = () => {
           <div className="space-y-3">
             <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-green-500 rounded-full" />
                 <span className="text-sm font-medium text-green-700 dark:text-green-300">Ollama Connected</span>
               </div>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">Ready to process documents</p>

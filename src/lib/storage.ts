@@ -179,7 +179,7 @@ export class StorageManager {
         console.log('[Storage] No preferences file found, creating with defaults');
         this.preferences = {
           arxivCategories: DEFAULT_ARXIV_CATEGORIES,
-          lastUpdated: Date.now()
+          lastUpdated: Date.now(),
         };
         await this.savePreferences();
         console.log('[Storage] Created default preferences:', this.preferences);
@@ -188,7 +188,7 @@ export class StorageManager {
       console.error('[Storage] Failed to load preferences:', error);
       this.preferences = {
         arxivCategories: DEFAULT_ARXIV_CATEGORIES,
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
       };
     }
   }
@@ -214,7 +214,7 @@ export class StorageManager {
   getPreferences(): UserPreferences {
     return this.preferences || {
       arxivCategories: DEFAULT_ARXIV_CATEGORIES,
-      lastUpdated: Date.now()
+      lastUpdated: Date.now(),
     };
   }
 
@@ -222,7 +222,7 @@ export class StorageManager {
     if (!this.preferences) {
       this.preferences = {
         arxivCategories: categories,
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
       };
     } else {
       this.preferences.arxivCategories = categories;

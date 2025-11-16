@@ -3,7 +3,7 @@ import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-d
 // Bundle the worker locally via Vite ?url to avoid remote CDN/CORS issues
 // Vite will transform this into an asset URL served by the dev server or included in the build
 // For pdfjs-dist v5.x, the worker path is slightly different
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+ 
 // @ts-ignore - Vite will provide the string URL at build time
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
@@ -24,7 +24,7 @@ export async function extractPdfTextFromPath(filePath: string): Promise<string> 
 
   const pageTexts: string[] = [];
   for (let i = 1; i <= pdf.numPages; i += 1) {
-    // eslint-disable-next-line no-await-in-loop
+     
     const pageText = await extractPageText(pdf, i);
     pageTexts.push(pageText);
   }
@@ -98,7 +98,7 @@ export async function extractPdfFromPathWithMeta(filePath: string): Promise<Extr
   
   const pageTexts: string[] = [];
   for (let i = 1; i <= pdf.numPages; i += 1) {
-    // eslint-disable-next-line no-await-in-loop
+     
     const pageText = await extractPageText(pdf, i);
     pageTexts.push(pageText);
   }
@@ -111,7 +111,7 @@ export async function extractPdfFromPathWithMeta(filePath: string): Promise<Extr
   if (title) {
     title = title.replace(/[\r\n]+/g, ' ').trim();
     if (title.length > 100) {
-      title = title.substring(0, 100) + '...';
+      title = `${title.substring(0, 100)  }...`;
     }
   }
   
@@ -124,7 +124,7 @@ export async function extractPdfFromPathWithMeta(filePath: string): Promise<Extr
     subject: info?.Subject,
     fileSize: data.byteLength,
     creationDate: info?.CreationDate ? new Date(info.CreationDate) : undefined,
-    modificationDate: info?.ModDate ? new Date(info.ModDate) : undefined
+    modificationDate: info?.ModDate ? new Date(info.ModDate) : undefined,
   };
 }
 

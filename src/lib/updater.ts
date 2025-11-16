@@ -64,7 +64,7 @@ export async function checkForUpdatesQuietly(): Promise<boolean> {
  * @param intervalMs Interval in milliseconds (default: 1 hour)
  * @returns Function to stop the periodic checks
  */
-export function scheduleUpdateChecks(intervalMs: number = 3600000): () => void {
+export function scheduleUpdateChecks(intervalMs = 3600000): () => void {
   console.log('[Updater] Scheduling periodic update checks every', intervalMs / 1000, 'seconds');
   
   // Check immediately on startup

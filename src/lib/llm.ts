@@ -39,7 +39,7 @@ export async function chatComplete(messages: ChatMessage[], config?: LlmConfig):
     const { data } = await axios.post(
       `${baseUrl}/chat/completions`,
       { model, messages, temperature: 0.2 },
-      { headers: { Authorization: `Bearer ${apiKey}` } }
+      { headers: { Authorization: `Bearer ${apiKey}` } },
     );
     const content: string = data.choices?.[0]?.message?.content ?? '';
     return content.trim();

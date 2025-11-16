@@ -11,7 +11,7 @@ export type RagIndex = {
 };
 
 const DEFAULT_STOPWORDS = new Set([
-  'the','is','at','of','on','and','a','to','in','for','that','this','with','as','an','by','be','are','or','it','from','we','can','also','not','our','have','has','which','their','these','those','into','using','used','use','such','than','other','more','most','less','least','between','over','under','above','below','however','therefore','thus','while','where','when','who','whom','whose','what','why','how'
+  'the','is','at','of','on','and','a','to','in','for','that','this','with','as','an','by','be','are','or','it','from','we','can','also','not','our','have','has','which','their','these','those','into','using','used','use','such','than','other','more','most','less','least','between','over','under','above','below','however','therefore','thus','while','where','when','who','whom','whose','what','why','how',
 ]);
 
 export function tokenize(text: string): string[] {
@@ -25,7 +25,7 @@ export function tokenize(text: string): string[] {
 export function chunkText(
   text: string,
   chunkSize = 1200,
-  overlap = 200
+  overlap = 200,
 ): TextChunk[] {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (!normalized) return [];

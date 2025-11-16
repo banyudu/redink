@@ -71,7 +71,7 @@ export const useAppStore = create<AppState>()(
         return { recentFiles: [file, ...existing] };
       }),
       removeRecentFile: (path) => set((state) => ({
-        recentFiles: state.recentFiles.filter(f => f.path !== path)
+        recentFiles: state.recentFiles.filter(f => f.path !== path),
       })),
       clearRecentFiles: () => set({ recentFiles: [] }),
       setReadingProgress: (filePath, progress) =>
@@ -122,6 +122,6 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'redink-storage',
-    }
-  )
+    },
+  ),
 ); 

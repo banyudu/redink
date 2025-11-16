@@ -88,7 +88,7 @@ export class VectorStore {
   async addChunks(
     documentId: string,
     chunks: TextChunk[],
-    embeddings: number[][]
+    embeddings: number[][],
   ): Promise<void> {
     if (chunks.length !== embeddings.length) {
       throw new Error('Chunks and embeddings length mismatch');
@@ -127,7 +127,7 @@ export class VectorStore {
   async search(
     documentId: string,
     queryEmbedding: number[],
-    topK = 5
+    topK = 5,
   ): Promise<VectorSearchResult[]> {
     if (!this.initialized || !this.storagePath) {
       await this.initialize();

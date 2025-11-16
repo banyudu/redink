@@ -1,13 +1,13 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import { loggers } from './logger';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-} 
+  return twMerge(clsx(inputs));
+}
 
-export const whisper = (...args: any[]) => {
-  console.debug(...args);
-};
+// Deprecated: Use loggers from './logger' instead
+export const whisper = loggers.app;
 
 /**
  * Generate a unique ID from a file path using a hash function

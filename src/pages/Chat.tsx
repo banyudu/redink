@@ -1,41 +1,45 @@
-import React, { useCallback, useMemo, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
-import { Input } from "../components/ui/input";
-import { Button } from "../components/ui/button";
-import { 
+import {
+  ArrowLeft,
+  Bot,
+  FileText,
+  Home,
+  Loader2,
+  MessageSquare,
+  Send,
+  Settings,
+  Sparkles,
+  User,
+} from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { useNavigate } from 'react-router-dom';
+import rehypeHighlight from 'rehype-highlight';
+import remarkGfm from 'remark-gfm';
+import { PDFViewer } from '../components/PDFViewer';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
-import { useAppStore } from "../store";
-import { generateFileId } from "../lib/utils";
-import { extractPdfFromPathWithMeta } from "../lib/pdf";
-import { hybridRAG, type HybridRagIndex } from "../lib/hybrid-rag";
-import { buildPrompt, chatComplete, listOllamaModels } from "../lib/llm";
-import { cacheManager } from "../lib/cache";
-import { PDFViewer } from "../components/PDFViewer";
-import { useNavigate } from "react-router-dom";
-import { 
-  FileText, 
-  Send, 
-  Bot, 
-  User, 
-  Loader2, 
-  Settings, 
-  MessageSquare,
-  ArrowLeft,
-  Home,
-  Sparkles
-} from "lucide-react";
+} from '../components/ui/select';
+import { ToastContainer, useToast } from '../components/ui/toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
+import { cacheManager } from '../lib/cache';
+import { hybridRAG, type HybridRagIndex } from '../lib/hybrid-rag';
+import { buildPrompt, chatComplete, listOllamaModels } from '../lib/llm';
+import { loggers } from '../lib/logger';
+import { extractPdfFromPathWithMeta } from '../lib/pdf';
+import { generateFileId } from '../lib/utils';
+import { useAppStore } from '../store';
 
 const Chat: React.FC = () => {
   const navigate = useNavigate();
-  
+  const { addToast, toasts, removeToast } = useToast();
+  const log = loggers.chat;
+
   const addChatMessage = useAppStore((s) => s.addChatMessage);
   const setCurrentPaper = useAppStore((s) => s.setCurrentPaper);
   const chatHistory = useAppStore((s) => s.chatHistory);
@@ -53,18 +57,18 @@ const Chat: React.FC = () => {
   const [autoLoading, setAutoLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [index, setIndex] = useState<HybridRagIndex | null>(null);
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState('');
   const [meta, setMeta] = useState<{ pages: number; chars: number; hasSemanticIndex: boolean } | null>(null);
   const [leftWidth, setLeftWidth] = useState(chatSeparatorPosition); // Percentage for left column
   const [isDragging, setIsDragging] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
-  
+
   // Reference for chat messages container to enable auto-scroll
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const messages = useMemo(() => {
-    if (!currentPaper) return [] as { role: "user" | "assistant"; content: string; timestamp: number }[];
+    if (!currentPaper) return [] as { role: 'user' | 'assistant'; content: string; timestamp: number }[];
     const chat = chatHistory.find((c) => c.paperId === currentPaper);
     return chat?.messages ?? [];
   }, [chatHistory, currentPaper]);
@@ -79,83 +83,87 @@ const Chat: React.FC = () => {
     const fetchModels = async () => {
       setLoadingModels(true);
       try {
-        console.log('[Chat] Fetching available Ollama models...');
+        log('Fetching available Ollama models...');
         const models = await listOllamaModels();
-        console.log('[Chat] Available models:', models);
+        log('Available models:', models);
         setAvailableModels(models);
-        
+
         // Set default model if current selection is empty or not in the list
         if (models.length > 0 && (!selectedModel || !models.includes(selectedModel))) {
           const defaultModel = models.find(m => m.includes('llama')) || models[0];
           setSelectedModel(defaultModel);
-          console.log('[Chat] Set default model:', defaultModel);
+          log('Set default model:', defaultModel);
         }
       } catch (error) {
-        console.error('[Chat] Failed to fetch Ollama models:', error);
+        log('Failed to fetch Ollama models:', error);
       } finally {
         setLoadingModels(false);
       }
     };
 
     fetchModels();
-  }, []); // Run only on mount
+  }, [log, selectedModel, setSelectedModel]); // Fixed dependency array
 
   const loadPdf = useCallback(async (pathToLoad: string, existingTitle?: string) => {
     if (!pathToLoad) {
-      console.error('[Chat] No path provided to loadPdf');
+      log('No path provided to loadPdf');
       return;
     }
-    
+
     setLoading(true);
     try {
-      console.log('[Chat] Loading PDF from path:', pathToLoad);
-      
+      log('Loading PDF from path:', pathToLoad);
+
       // Validate that this is a PDF path, not a vector storage path
       if (pathToLoad.includes('.cache/redink/vectors')) {
-        console.error('[Chat] Invalid path - this is a vector storage path, not a PDF path');
-        alert('Error: Invalid file path. Please select a valid PDF file.');
+        log('Invalid path - this is a vector storage path, not a PDF path');
+        addToast({
+          type: 'error',
+          title: 'Invalid File Path',
+          message: 'Please select a valid PDF file.',
+        });
         return;
       }
-      
+
       // Extract PDF text
-      console.log('[Chat] Extracting PDF text...');
+      log('Extracting PDF text...');
       const result = await extractPdfFromPathWithMeta(pathToLoad);
       const { text, pageCount, charCount, title, fileSize } = result;
-      
-      console.log('[Chat] PDF extracted:', { pageCount, charCount, titleLength: title?.length });
-      
+
+      log('PDF extracted:', { pageCount, charCount, titleLength: title?.length });
+
       // Generate document ID from path (stable identifier) using hash function
       const documentId = generateFileId(pathToLoad);
-      console.log('[Chat] Document ID:', documentId);
-      
+      log('Document ID:', documentId);
+
       // Build hybrid RAG index
-      console.log('[Chat] Building hybrid RAG index...');
+      log('Building hybrid RAG index...');
       const idx = await hybridRAG.buildIndex(documentId, text, {
         chunkStrategy: 'semantic',
         forceRebuild: false, // Use cache if available
       });
-      
+
       setIndex(idx);
-      setMeta({ 
-        pages: pageCount, 
+      setMeta({
+        pages: pageCount,
         chars: charCount,
-        hasSemanticIndex: idx.hasSemanticIndex
+        hasSemanticIndex: idx.hasSemanticIndex,
       });
-      
+
       // Store the actual PDF path, not the document ID or vector path
       setCurrentPaper(pathToLoad);
       setLastSelectedPdfPath(pathToLoad);
-      
-      console.log('[Chat] Index created successfully:', {
+
+      log('Index created successfully:', {
         chunks: idx.metadata.chunkCount,
         hasSemanticIndex: idx.hasSemanticIndex,
         model: idx.metadata.embeddingModel,
-        pdfPath: pathToLoad
+        pdfPath: pathToLoad,
       });
-      
+
       // Use existing title if provided, otherwise use extracted title, then fallback to filename
       const preferredTitle = existingTitle || title || pathToLoad.split('/').pop() || 'Untitled';
-      
+
       // Add to recent files cache
       const recentFile = {
         id: documentId,
@@ -164,32 +172,36 @@ const Chat: React.FC = () => {
         lastAccessed: Date.now(),
         addedDate: Date.now(),
         pageCount,
-        fileSize
+        fileSize,
       };
-      
+
       // Update both cache manager and store
       await cacheManager.addRecentFile(pathToLoad, recentFile.title, { pageCount, fileSize });
       addRecentFile(recentFile);
-      
-    } catch (err: any) {
-      console.error('[Chat] Failed to load PDF:', err);
-      console.error('[Chat] Error details:', {
-        message: err?.message,
-        stack: err?.stack,
-        path: pathToLoad
+
+    } catch (err: unknown) {
+      log('Failed to load PDF:', err);
+      log('Error details:', {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        path: pathToLoad,
       });
-      alert(`Failed to load PDF: ${err?.message ?? String(err)}\n\nPath: ${pathToLoad}`);
+      addToast({
+        type: 'error',
+        title: 'Failed to load PDF',
+        message: err instanceof Error ? err.message : String(err),
+      });
     } finally {
       setLoading(false);
     }
-  }, [setCurrentPaper, setLastSelectedPdfPath, addRecentFile]);
+  }, [addToast, log, setCurrentPaper, setLastSelectedPdfPath, addRecentFile]);
 
   // Check if file exists helper function
   const checkFileExists = useCallback(async (filePath: string): Promise<boolean> => {
     try {
-      const { exists } = await import("@tauri-apps/plugin-fs");
+      const { exists } = await import('@tauri-apps/plugin-fs');
       return await exists(filePath);
-    } catch (error) {
+    } catch {
       return false;
     }
   }, []);
@@ -198,42 +210,42 @@ const Chat: React.FC = () => {
   React.useEffect(() => {
     const autoLoadLastPdf = async () => {
       const pathToLoad = currentPaper || lastSelectedPdfPath;
-      
+
       // Check if we need to load/reload the PDF
       // Generate documentId from path to compare with current index
       const documentId = pathToLoad ? generateFileId(pathToLoad) : null;
       // Load if: we have a path AND (no index OR index is for a different document)
       const needsLoad = pathToLoad && (!index || (index && documentId && index.documentId !== documentId));
       const shouldLoad = needsLoad && !loading && !autoLoading;
-      
+
       if (shouldLoad && pathToLoad) {
         // Validate path before attempting to load
         if (pathToLoad.includes('.cache/redink/vectors')) {
-          console.error('[Chat] Invalid path in store - clearing:', pathToLoad);
+          log('Invalid path in store - clearing:', pathToLoad);
           setCurrentPaper(null);
           setLastSelectedPdfPath(null);
           navigate('/');
           return;
         }
-        
+
         setAutoLoading(true);
         try {
-          console.log('[Chat] Auto-loading PDF from path:', pathToLoad);
+          log('Auto-loading PDF from path:', pathToLoad);
           const fileExists = await checkFileExists(pathToLoad);
           if (fileExists) {
-            console.log("[Chat] Auto-loading PDF for text extraction:", pathToLoad);
+            log('Auto-loading PDF for text extraction:', pathToLoad);
             // Find existing title from recent files to preserve clean titles
             const existingFile = recentFiles.find(f => f.path === pathToLoad);
             await loadPdf(pathToLoad, existingFile?.title);
           } else {
-            console.log("[Chat] PDF file no longer exists:", pathToLoad);
+            log('PDF file no longer exists:', pathToLoad);
             // Clear the invalid path and redirect to home
             setCurrentPaper(null);
             setLastSelectedPdfPath(null);
             navigate('/');
           }
         } catch (error) {
-          console.error('[Chat] Error in auto-load:', error);
+          log('Error in auto-load:', error);
           setCurrentPaper(null);
           setLastSelectedPdfPath(null);
           navigate('/');
@@ -247,18 +259,18 @@ const Chat: React.FC = () => {
     };
 
     autoLoadLastPdf();
-  }, [lastSelectedPdfPath, currentPaper, index, loading, autoLoading, checkFileExists, loadPdf, setCurrentPaper, setLastSelectedPdfPath, navigate, recentFiles]);
+  }, [lastSelectedPdfPath, currentPaper, index, loading, autoLoading, checkFileExists, loadPdf, setCurrentPaper, setLastSelectedPdfPath, navigate, recentFiles, log]);
 
   const send = useCallback(async () => {
     if (!currentPaper || !index || !question.trim() || sending) return;
     const q = question.trim();
-    setQuestion("");
+    setQuestion('');
     setSending(true);
-    addChatMessage(currentPaper, "user", q);
-    
+    addChatMessage(currentPaper, 'user', q);
+
     try {
-      console.log('[Chat] Searching for:', q);
-      
+      log('Searching for:', q);
+
       // Use hybrid RAG search
       const results = await hybridRAG.search(index.documentId, q, {
         topK: 5,
@@ -266,24 +278,24 @@ const Chat: React.FC = () => {
         semanticWeight: 0.6,
         fusionMethod: 'weighted',
       });
-      
-      console.log('[Chat] Search results:', results.length);
-      
+
+      log('Search results:', results.length);
+
       // Extract context from results
       const contexts = results.map(r => r.chunk.text);
-      
+
       // Build prompt and get answer
       const prompt = buildPrompt(q, contexts);
       const answer = await chatComplete(prompt, { provider: 'ollama', model: selectedModel });
-      
-      addChatMessage(currentPaper, "assistant", answer);
-    } catch (err: any) {
-      console.error('[Chat] Error:', err);
-      addChatMessage(currentPaper, "assistant", `Error: ${err?.message ?? String(err)}`);
+
+      addChatMessage(currentPaper, 'assistant', answer);
+    } catch (err: unknown) {
+      log('Error:', err);
+      addChatMessage(currentPaper, 'assistant', `Error: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSending(false);
     }
-  }, [addChatMessage, currentPaper, index, question, selectedModel, sending]);
+  }, [addChatMessage, currentPaper, index, question, selectedModel, sending, log]);
 
   // Handle resize dragging
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -305,8 +317,13 @@ const Chat: React.FC = () => {
     setIsDragging(false);
     // Save the final position to store when drag ends
     setChatSeparatorPosition(leftWidth);
-    console.log('[Chat] Saved separator position:', leftWidth);
-  }, [leftWidth, setChatSeparatorPosition]);
+    log('Saved separator position:', leftWidth);
+  }, [leftWidth, setChatSeparatorPosition, log]);
+
+  // Prevent selection event during drag
+  const preventSelection = useCallback((e: Event) => {
+    e.preventDefault();
+  }, []);
 
   // Add/remove mouse event listeners for dragging
   React.useEffect(() => {
@@ -317,12 +334,12 @@ const Chat: React.FC = () => {
       document.body.style.cursor = 'col-resize';
       // Also add a class to prevent pointer events on child elements
       document.body.classList.add('dragging-separator');
-      
+
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
       // Prevent selection during drag
       window.addEventListener('selectstart', preventSelection);
-      
+
       return () => {
         document.body.style.userSelect = '';
         document.body.style.webkitUserSelect = '';
@@ -333,12 +350,7 @@ const Chat: React.FC = () => {
         window.removeEventListener('selectstart', preventSelection);
       };
     }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
-  
-  // Prevent selection event during drag
-  const preventSelection = useCallback((e: Event) => {
-    e.preventDefault();
-  }, []);
+  }, [isDragging, handleMouseMove, handleMouseUp, preventSelection]);
 
   // Auto-scroll to bottom when messages change
   React.useEffect(() => {
@@ -348,13 +360,13 @@ const Chat: React.FC = () => {
   // Get document title for display - look up in recentFiles first, fallback to filename
   const documentTitle = useMemo(() => {
     if (!currentPaper) return 'No Document';
-    
+
     // Try to find the title from recent files
     const recentFile = recentFiles.find(f => f.path === currentPaper);
     if (recentFile?.title) {
       return recentFile.title;
     }
-    
+
     // Fallback to extracting from filename
     return currentPaper.split('/').pop()?.replace('.pdf', '') || 'Document';
   }, [currentPaper, recentFiles]);
@@ -424,7 +436,7 @@ const Chat: React.FC = () => {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          
+
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
               <MessageSquare className="w-4 h-4 text-white" />
@@ -457,7 +469,7 @@ const Chat: React.FC = () => {
             disabled={loadingModels}
           >
             <SelectTrigger className="w-64 h-10 glass border-white/20 bg-white/10 backdrop-blur-xl text-sm text-gray-900 dark:text-white hover:border-white/30">
-              <SelectValue placeholder={loadingModels ? "Loading models..." : "Select a model"} />
+              <SelectValue placeholder={loadingModels ? 'Loading models...' : 'Select a model'} />
             </SelectTrigger>
             <SelectContent className="glass border-white/20 backdrop-blur-xl bg-white/95 dark:bg-gray-800/95 dark:text-white">
               {availableModels.length === 0 && !loadingModels ? (
@@ -466,8 +478,8 @@ const Chat: React.FC = () => {
                 </SelectItem>
               ) : (
                 availableModels.map((model) => (
-                  <SelectItem 
-                    key={model} 
+                  <SelectItem
+                    key={model}
                     value={model}
                     className="cursor-pointer dark:focus:bg-gray-700 dark:text-white"
                   >
@@ -483,12 +495,12 @@ const Chat: React.FC = () => {
       {/* Two Column Layout with Resizable Split - Fixed dimensions to prevent layout shift */}
       <div className="flex gap-0 h-[calc(100%-72px)] relative" style={{ minHeight: '500px' }}>
         {/* Left Column - PDF Viewer - Fixed dimensions during transitions */}
-        <div 
+        <div
           className="h-full overflow-hidden"
-          style={{ 
-            width: `${leftWidth}%`, 
+          style={{
+            width: `${leftWidth}%`,
             minWidth: '200px',
-            transition: isDragging ? 'none' : 'width 0.2s ease-out'
+            transition: isDragging ? 'none' : 'width 0.2s ease-out',
           }}
         >
           <PDFViewer filePath={currentPaper} className="h-full" />
@@ -496,17 +508,20 @@ const Chat: React.FC = () => {
 
         {/* Resize Handle - Fixed dimensions */}
         <div
+          role="separator"
+          aria-label="Resize panels"
+          tabIndex={0}
           className="w-1.5 cursor-col-resize hover:bg-blue-500 flex-shrink-0 bg-transparent my-2 rounded-sm"
           onMouseDown={handleMouseDown}
         />
 
         {/* Right Column - Chat Interface - Fixed dimensions during transitions */}
-        <div 
+        <div
           className="flex flex-col h-full min-h-0"
-          style={{ 
+          style={{
             width: `${100 - leftWidth}%`,
             minWidth: '200px',
-            transition: isDragging ? 'none' : 'width 0.2s ease-out'
+            transition: isDragging ? 'none' : 'width 0.2s ease-out',
           }}
         >
           {/* Chat Messages Area - Fixed dimensions to prevent layout shift */}
@@ -515,98 +530,96 @@ const Chat: React.FC = () => {
               <h3 className="font-semibold text-gray-900 dark:text-white">AI Conversation</h3>
               <p className="text-sm text-gray-600 dark:text-gray-300">Ask questions about your research paper</p>
             </div>
-            
+
             <div className="flex-1 p-6 overflow-auto space-y-4 min-h-0" style={{ minHeight: '200px' }}>
-                {messages.length === 0 && index && (
-                  <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                      <MessageSquare className="w-8 h-8 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        Ready to chat!
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-300 max-w-md">
-                        Your document has been processed. Ask me anything about the content, 
-                        methodology, findings, or any specific details you'd like to explore.
-                      </p>
-                    </div>
+              {messages.length === 0 && index && (
+                <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                    <MessageSquare className="w-8 h-8 text-white" />
                   </div>
-                )}
-
-                {messages.length === 0 && !index && loading && (
-                  <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-                    <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        Processing Document
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-300 max-w-md">
-                        Analyzing your PDF and preparing it for AI conversation...
-                      </p>
-                    </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      Ready to chat!
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-300 max-w-md">
+                      Your document has been processed. Ask me anything about the content,
+                      methodology, findings, or any specific details you'd like to explore.
+                    </p>
                   </div>
-                )}
+                </div>
+              )}
 
-                {messages.map((m, i) => (
-                  <div key={i} className={`flex items-start gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
-                    {/* Avatar */}
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      m.role === "user" 
-                        ? "bg-gradient-to-br from-blue-500 to-purple-600" 
-                        : "bg-gradient-to-br from-emerald-500 to-teal-600"
+              {messages.length === 0 && !index && loading && (
+                <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                  <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      Processing Document
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-300 max-w-md">
+                      Analyzing your PDF and preparing it for AI conversation...
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {messages.map((m, i) => (
+                <div key={i} className={`flex items-start gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  {/* Avatar */}
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${m.role === 'user'
+                      ? 'bg-gradient-to-br from-blue-500 to-purple-600'
+                      : 'bg-gradient-to-br from-emerald-500 to-teal-600'
                     }`}>
-                      {m.role === "user" ? (
-                        <User className="w-4 h-4 text-white" />
+                    {m.role === 'user' ? (
+                      <User className="w-4 h-4 text-white" />
+                    ) : (
+                      <Bot className="w-4 h-4 text-white" />
+                    )}
+                  </div>
+
+                  {/* Message */}
+                  <div className={`max-w-[85%] ${m.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                    <div className={`px-4 py-3 rounded-lg shadow-sm animate-fade-in ${m.role === 'user'
+                        ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-tr-lg'
+                        : 'glass border border-white/20 text-gray-900 dark:text-white rounded-tl-lg'
+                      }`}>
+                      {m.role === 'assistant' ? (
+                        <div className="markdown-content">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeHighlight]}
+                          >
+                            {m.content}
+                          </ReactMarkdown>
+                        </div>
                       ) : (
-                        <Bot className="w-4 h-4 text-white" />
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
                       )}
                     </div>
+                    <span className="text-xs text-gray-500 px-2">
+                      {new Date(m.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
 
-                    {/* Message */}
-                    <div className={`max-w-[85%] ${m.role === "user" ? "items-end" : "items-start"} flex flex-col gap-1`}>
-                      <div className={`px-4 py-3 rounded-lg shadow-sm animate-fade-in ${
-                        m.role === "user"
-                          ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-tr-lg"
-                          : "glass border border-white/20 text-gray-900 dark:text-white rounded-tl-lg"
-                      }`}>
-                        {m.role === "assistant" ? (
-                          <div className="markdown-content">
-                            <ReactMarkdown 
-                              remarkPlugins={[remarkGfm]}
-                              rehypePlugins={[rehypeHighlight]}
-                            >
-                              {m.content}
-                            </ReactMarkdown>
-                          </div>
-                        ) : (
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
-                        )}
-                      </div>
-                      <span className="text-xs text-gray-500 px-2">
-                        {new Date(m.timestamp).toLocaleTimeString()}
-                      </span>
+              {sending && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                    <Bot className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="glass border border-white/20 px-4 py-3 rounded-lg rounded-tl-lg">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                      <span className="text-sm text-gray-600 dark:text-gray-300">Thinking...</span>
                     </div>
                   </div>
-                ))}
+                </div>
+              )}
 
-                {sending && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-                      <Bot className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="glass border border-white/20 px-4 py-3 rounded-lg rounded-tl-lg">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                        <span className="text-sm text-gray-600 dark:text-gray-300">Thinking...</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Invisible div for auto-scroll */}
-                <div ref={messagesEndRef} />
-              </div>
+              {/* Invisible div for auto-scroll */}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
 
           {/* Message Input - Fixed dimensions to prevent layout shift */}
@@ -614,11 +627,11 @@ const Chat: React.FC = () => {
             <div className="flex items-center gap-3">
               <div className="flex-1 relative">
                 <Input
-                  placeholder={index ? "Ask about the paper..." : "Processing document..."}
+                  placeholder={index ? 'Ask about the paper...' : 'Processing document...'}
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       send();
                     }
@@ -628,12 +641,12 @@ const Chat: React.FC = () => {
                   style={{ minHeight: '40px' }}
                 />
               </div>
-              
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      onClick={send} 
+                    <Button
+                      onClick={send}
                       disabled={!index || !question.trim() || sending || loading}
                       className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 px-6 transition-all duration-300 hover:scale-105"
                     >
@@ -653,6 +666,9 @@ const Chat: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 };

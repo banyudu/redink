@@ -49,7 +49,7 @@ function mapRustPaper(rustPaper: RustArxivPaper): ArxivPaper {
     abstract: rustPaper.abstract_text,
     downloadUrl: rustPaper.download_url,
     pdfUrl: rustPaper.pdf_url,
-    categories: rustPaper.categories
+    categories: rustPaper.categories,
   };
 }
 
@@ -92,12 +92,12 @@ export async function searchArxivPapers(
     maxResults?: number;
     sortBy?: 'relevance' | 'lastUpdatedDate' | 'submittedDate';
     sortOrder?: 'ascending' | 'descending';
-  } = {}
+  } = {},
 ): Promise<ArxivPaper[]> {
   const {
     maxResults = DEFAULT_MAX_RESULTS,
     sortBy = 'relevance',
-    sortOrder = 'descending'
+    sortOrder = 'descending',
   } = options;
 
   // Handle empty query - fetch featured papers instead
@@ -113,12 +113,12 @@ export async function searchArxivPapers(
     const rustOptions: ArxivSearchOptions = {
       maxResults,
       sortBy,
-      sortOrder
+      sortOrder,
     };
 
     const rustPapers: RustArxivPaper[] = await invoke('search_arxiv_papers', {
       query,
-      options: rustOptions
+      options: rustOptions,
     });
 
     const papers = rustPapers.map(mapRustPaper);
@@ -131,7 +131,7 @@ export async function searchArxivPapers(
     console.error('[ArXiv API] Detailed error for user:', {
       originalError: error,
       message: errorMessage,
-      stack: error.stack
+      stack: error.stack,
     });
     throw new Error(`ArXiv search failed: ${errorMessage}`);
   }
@@ -146,7 +146,7 @@ export async function getFeaturedPapers(maxResults = 12): Promise<ArxivPaper[]> 
 
     const rustPapers: RustArxivPaper[] = await invoke('get_papers_by_categories', {
       categories: ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV'],
-      maxResults
+      maxResults,
     });
 
     const papers = rustPapers.map(mapRustPaper);
@@ -158,7 +158,7 @@ export async function getFeaturedPapers(maxResults = 12): Promise<ArxivPaper[]> 
     console.error('[ArXiv API] Detailed error for user:', {
       originalError: error,
       message: errorMessage,
-      stack: error.stack
+      stack: error.stack,
     });
     throw new Error(`Failed to fetch featured papers: ${errorMessage}`);
   }
@@ -169,14 +169,14 @@ export async function getFeaturedPapers(maxResults = 12): Promise<ArxivPaper[]> 
  */
 export async function searchByCategory(
   category: string,
-  maxResults = DEFAULT_MAX_RESULTS
+  maxResults = DEFAULT_MAX_RESULTS,
 ): Promise<ArxivPaper[]> {
   try {
     console.log('[ArXiv API] Searching by category via Rust backend:', category);
 
     const rustPapers: RustArxivPaper[] = await invoke('get_papers_by_categories', {
       categories: [category],
-      maxResults
+      maxResults,
     });
 
     const papers = rustPapers.map(mapRustPaper);
@@ -196,7 +196,7 @@ export async function getPaperById(arxivId: string): Promise<ArxivPaper | null> 
     console.log('[ArXiv API] Getting paper by ID via Rust backend:', arxivId);
 
     const rustPaper: RustArxivPaper | null = await invoke('get_paper_by_id', {
-      arxivId
+      arxivId,
     });
 
     if (!rustPaper) {
@@ -356,7 +356,7 @@ export const arxivCache = new ArxivCacheManager();
  */
 export async function searchArxivPapersCached(
   query: string,
-  options: Parameters<typeof searchArxivPapers>[1] = {}
+  options: Parameters<typeof searchArxivPapers>[1] = {},
 ): Promise<ArxivPaper[]> {
   // Handle empty query - use featured papers with caching
   if (!query || query.trim() === '') {
@@ -400,14 +400,14 @@ export async function getFeaturedPapersCached(maxResults = 12): Promise<ArxivPap
  */
 export async function getPapersByCategories(
   categories: string[],
-  maxResults = 20
+  maxResults = 20,
 ): Promise<ArxivPaper[]> {
   try {
     console.log('[ArXiv API] Getting papers by categories via Rust backend:', categories);
 
     const rustPapers: RustArxivPaper[] = await invoke('get_papers_by_categories', {
       categories,
-      maxResults
+      maxResults,
     });
 
     const papers = rustPapers.map(mapRustPaper);
@@ -420,7 +420,7 @@ export async function getPapersByCategories(
       originalError: error,
       message: errorMessage,
       stack: error.stack,
-      categories
+      categories,
     });
     throw new Error(`Failed to get papers by categories: ${errorMessage}`);
   }
@@ -431,7 +431,7 @@ export async function getPapersByCategories(
  */
 export async function getPapersByCategoriesCached(
   categories: string[],
-  maxResults = 20
+  maxResults = 20,
 ): Promise<ArxivPaper[]> {
   // Sort categories to ensure consistent cache key
   const sortedCategories = [...categories].sort();

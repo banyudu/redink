@@ -108,7 +108,7 @@ export class EmbeddingService {
       console.log(`[Embeddings] Processing batch ${i / batchSize + 1}/${Math.ceil(texts.length / batchSize)}`);
       
       const batchEmbeddings = await Promise.all(
-        batch.map(text => this.embed(text))
+        batch.map(text => this.embed(text)),
       );
       
       embeddings.push(...batchEmbeddings);

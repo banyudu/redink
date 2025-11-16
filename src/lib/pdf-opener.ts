@@ -38,7 +38,7 @@ export interface OpenPdfOptions {
  */
 export async function openPdfByPath(
   filePath: string,
-  options: OpenPdfOptions
+  options: OpenPdfOptions,
 ): Promise<void> {
   const { addRecentFile, setCurrentPaper, setLastSelectedPdfPath, navigate, preferredTitle, onStart, onComplete, onError } = options;
   
@@ -61,7 +61,7 @@ export async function openPdfByPath(
       lastAccessed: Date.now(),
       addedDate: Date.now(),
       pageCount,
-      fileSize
+      fileSize,
     };
     
     // Add to cache (persistent storage)
@@ -92,7 +92,7 @@ export async function openPdfByPath(
  */
 export async function openArxivPaper(
   arxivId: string,
-  options: OpenPdfOptions
+  options: OpenPdfOptions,
 ): Promise<void> {
   const { onStart, onError } = options;
   
@@ -133,7 +133,7 @@ export async function openArxivPaper(
       finalPath = await storageManager.downloadArxivPaper(
         paper.id,
         paper.title,
-        paper.pdfUrl
+        paper.pdfUrl,
       );
     } else {
       console.log('[PdfOpener] Paper already exists:', paperPath);
@@ -143,7 +143,7 @@ export async function openArxivPaper(
     // Pass the original paper title so it's not sanitized in the UI
     await openPdfByPath(finalPath, {
       ...options,
-      preferredTitle: paper.title
+      preferredTitle: paper.title,
     });
     
   } catch (error: any) {
@@ -159,7 +159,7 @@ export async function openArxivPaper(
  */
 export async function openArxivPaperFromObject(
   paper: ArxivPaper,
-  options: OpenPdfOptions
+  options: OpenPdfOptions,
 ): Promise<void> {
   return openArxivPaper(paper.id, options);
 }

@@ -70,7 +70,7 @@ export function semanticChunk(
   text: string,
   targetChunkSize = 800,
   _minChunkSize = 400,
-  maxChunkSize = 1200
+  maxChunkSize = 1200,
 ): EnhancedTextChunk[] {
   const chunks: EnhancedTextChunk[] = [];
   
@@ -169,7 +169,7 @@ export function semanticChunk(
 export function slidingWindowChunk(
   text: string,
   windowSize = 1000,
-  overlap = 200
+  overlap = 200,
 ): EnhancedTextChunk[] {
   const chunks: EnhancedTextChunk[] = [];
   const sentences = splitIntoSentences(text);
@@ -254,7 +254,7 @@ export interface HierarchicalChunk extends EnhancedTextChunk {
 export function hierarchicalChunk(
   text: string,
   parentSize = 2000,
-  childSize = 600
+  childSize = 600,
 ): HierarchicalChunk[] {
   const chunks: HierarchicalChunk[] = [];
   
@@ -302,7 +302,7 @@ export function smartChunk(
   options?: {
     targetSize?: number;
     overlap?: number;
-  }
+  },
 ): EnhancedTextChunk[] | HierarchicalChunk[] {
   const { targetSize = 800, overlap = 200 } = options ?? {};
   

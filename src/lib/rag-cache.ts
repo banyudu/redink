@@ -145,7 +145,7 @@ export class RAGCacheManager {
   async cacheEmbedding(
     text: string,
     embedding: number[],
-    modelName: string
+    modelName: string,
   ): Promise<void> {
     const key = this.simpleHash(text + modelName);
     this.embeddingCache.set(key, {

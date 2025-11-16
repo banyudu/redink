@@ -1,4 +1,4 @@
-import { whisper } from "@/lib/utils";
+import { whisper } from '@/lib/utils';
 import {
   AlertCircle,
   BookOpen,
@@ -12,25 +12,27 @@ import {
   Search,
   Settings2,
   Trash2,
-  X
-} from "lucide-react";
-import React, { useCallback, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { ToastContainer, useToast } from "../components/ui/toast";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
+  X,
+} from 'lucide-react';
+import React, { useCallback, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { ToastContainer, useToast } from '../components/ui/toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
 import {
   ARXIV_CATEGORIES,
   arxivCache,
   getPapersByCategoriesCached,
   searchArxivPapersCached,
-  type ArxivPaper
-} from "../lib/arxiv";
-import { cacheManager, type RecentFile } from "../lib/cache";
-import { openArxivPaperFromObject, openPdfByPath } from "../lib/pdf-opener";
-import { storageManager } from "../lib/storage";
-import { useAppStore } from "../store";
+  type ArxivPaper,
+} from '../lib/arxiv';
+import { cacheManager, type RecentFile } from '../lib/cache';
+import { loggers } from '../lib/logger';
+import { openArxivPaperFromObject, openPdfByPath } from '../lib/pdf-opener';
+import { storageManager } from '../lib/storage';
+import { showError } from '../lib/toast-manager';
+import { useAppStore } from '../store';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -47,7 +49,7 @@ export const Home: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
-  const [arxivQuery, setArxivQuery] = useState("");
+  const [arxivQuery, setArxivQuery] = useState('');
   const [arxivPapers, setArxivPapers] = useState<ArxivPaper[]>([]);
   const [filteredPapers, setFilteredPapers] = useState<ArxivPaper[]>([]);
   const [downloadingPaper, setDownloadingPaper] = useState<string | null>(null);
@@ -74,17 +76,17 @@ export const Home: React.FC = () => {
 
         // Load user preferences for arXiv categories
         const prefs = storageManager.getPreferences();
-        console.log('[Home] Loaded user preferences:', prefs);
+        loggers.app(' Loaded user preferences:', prefs);
 
         // Set categories - ensure we have at least default categories
         if (prefs.arxivCategories && prefs.arxivCategories.length > 0) {
           setSelectedCategories(prefs.arxivCategories);
-          console.log('[Home] Using saved categories:', prefs.arxivCategories);
+          loggers.app(' Using saved categories:', prefs.arxivCategories);
         } else {
           // Fallback to defaults if no preferences saved
           const defaultCategories = ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV'];
           setSelectedCategories(defaultCategories);
-          console.log('[Home] Using default categories:', defaultCategories);
+          loggers.app(' Using default categories:', defaultCategories);
         }
       } catch (error) {
         console.error('Failed to initialize:', error);
@@ -119,11 +121,11 @@ export const Home: React.FC = () => {
           setArxivPapers(cached);
           setFilteredPapers(cached);
           hasCachedData = true;
-          console.log('[Home] Showing cached papers while fetching fresh data:', cached.length);
+          loggers.app(' Showing cached papers while fetching fresh data:', cached.length);
         } else {
           // No cached data, show loading indicator
           setLoadingPapers(true);
-          console.log('[Home] No cached data, fetching from ArXiv...');
+          loggers.app(' No cached data, fetching from ArXiv...');
         }
       }
 
@@ -131,16 +133,16 @@ export const Home: React.FC = () => {
       const papers = await getPapersByCategoriesCached(selectedCategories, 20);
       setArxivPapers(papers);
       setFilteredPapers(papers);
-      console.log('[Home] Updated with papers for categories:', selectedCategories, 'count:', papers.length);
-    } catch (error: any) {
-      console.error('[Home] Failed to load papers:', error);
+      loggers.app(' Updated with papers for categories:', selectedCategories, 'count:', papers.length);
+    } catch (error: unknown) {
+      loggers.app(' Failed to load papers:', error);
       const errorMessage = error.message || 'Unknown error occurred';
-      console.error('[Home] Detailed error info:', {
+      loggers.app(' Detailed error info:', {
         originalError: error,
         message: errorMessage,
         stack: error.stack,
         selectedCategories,
-        forceRefresh
+        forceRefresh,
       });
       setPapersError(`Failed to load ArXiv papers: ${errorMessage}. Please check your internet connection and try again.`);
 
@@ -153,9 +155,16 @@ export const Home: React.FC = () => {
         actions: [
           {
             label: 'Retry',
-            onClick: () => handleRefreshPapers()
-          }
-        ]
+            onClick: async () => {
+              try {
+                arxivCache.clear();
+              } catch (error) {
+                loggers.app('Failed to clear cache:', error);
+              }
+              await loadPapers(true);
+            },
+          },
+        ],
       });
 
       // Only clear data if we don't have cached data
@@ -169,16 +178,16 @@ export const Home: React.FC = () => {
         setIsRefreshing(false);
       }
     }
-  }, [selectedCategories]);
+  }, [selectedCategories, addToast]);
 
   // Handle refresh button click
   const handleRefreshPapers = useCallback(async () => {
     // Force reload by clearing all cache and fetching fresh data
     try {
       arxivCache.clear(); // Clear memory cache
-      console.log('[Home] Cleared cache before refresh');
+      loggers.app(' Cleared cache before refresh');
     } catch (error) {
-      console.error('[Home] Failed to clear cache:', error);
+      loggers.app(' Failed to clear cache:', error);
     }
 
     await loadPapers(true);
@@ -212,15 +221,15 @@ export const Home: React.FC = () => {
         const searchQuery = `all:${arxivQuery}`;
         const papers = await searchArxivPapersCached(searchQuery, { maxResults: 20 });
         setFilteredPapers(papers);
-        console.log('[Home] Search results:', papers.length);
-      } catch (error: any) {
-        console.error('[Home] Search failed:', error);
+        loggers.app(' Search results:', papers.length);
+      } catch (error: unknown) {
+        loggers.app(' Search failed:', error);
         const errorMessage = error.message || 'Unknown search error';
-        console.error('[Home] Detailed search error info:', {
+        loggers.app(' Detailed search error info:', {
           originalError: error,
           message: errorMessage,
           stack: error.stack,
-          searchQuery: `all:${arxivQuery}`
+          searchQuery: `all:${arxivQuery}`,
         });
         setPapersError(`Search failed: ${errorMessage}. Please try again with different keywords.`);
 
@@ -229,7 +238,7 @@ export const Home: React.FC = () => {
           title: 'Search failed',
           message: `Error: ${errorMessage}. Please try different keywords or check your connection.`,
           type: 'error',
-          duration: 6000
+          duration: 6000,
         });
 
         setFilteredPapers([]);
@@ -268,7 +277,7 @@ export const Home: React.FC = () => {
           setLoading(false);
           setLoadingFile(null);
           alert(`Failed to load PDF: ${err.message ?? String(err)}`);
-        }
+        },
       });
     } catch (err) {
       // Error already handled in onError callback
@@ -277,31 +286,31 @@ export const Home: React.FC = () => {
 
   // Handle file selection via Tauri dialog
   const handleFileSelect = useCallback(async () => {
-    console.log('[DEBUG] handleFileSelect called - opening Tauri file dialog');
+    loggers.app(' handleFileSelect called - opening Tauri file dialog');
 
     try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      console.log('[DEBUG] Tauri dialog imported successfully');
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      loggers.app(' Tauri dialog imported successfully');
 
       const filePath = await open({
         multiple: false,
-        title: "Select a PDF",
-        filters: [{ name: "PDF", extensions: ["pdf"] }]
+        title: 'Select a PDF',
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
       });
 
-      console.log('[DEBUG] Dialog result:', filePath);
+      loggers.app(' Dialog result:', filePath);
 
-      if (typeof filePath === "string" && filePath.endsWith(".pdf")) {
-        console.log('[DEBUG] Valid PDF selected, processing:', filePath);
+      if (typeof filePath === 'string' && filePath.endsWith('.pdf')) {
+        loggers.app(' Valid PDF selected, processing:', filePath);
         await processPdfFile(filePath);
       } else if (filePath) {
-        console.warn('[DEBUG] Invalid file selected:', filePath);
-        alert('Please select a PDF file');
+        loggers.app(' Invalid file selected:', filePath);
+        showError('Please select a PDF file');
       } else {
-        console.log('[DEBUG] File selection cancelled by user');
+        loggers.app(' File selection cancelled by user');
       }
-    } catch (err: any) {
-      console.error('[DEBUG] File selection error:', err);
+    } catch (err: unknown) {
+      loggers.app(' File selection error:', err);
       alert(`Failed to select file: ${err?.message ?? String(err)}`);
     }
   }, [processPdfFile]);
@@ -310,9 +319,9 @@ export const Home: React.FC = () => {
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+    if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (e.type === 'dragleave') {
       setDragActive(false);
     }
   }, []);
@@ -322,7 +331,7 @@ export const Home: React.FC = () => {
     e.stopPropagation();
     setDragActive(false);
 
-    console.log('[DEBUG] File dropped');
+    loggers.app(' File dropped');
     // Note: In Tauri, drag & drop may not work the same as web
     // For now, open file dialog as fallback
     handleFileSelect();
@@ -343,10 +352,10 @@ export const Home: React.FC = () => {
       // Update the UI by removing from the list
       const updatedFiles = recentFiles.filter(f => f.id !== file.id);
       setRecentFiles(updatedFiles);
-      console.log('[Home] Removed recent file:', file.path);
+      loggers.app(' Removed recent file:', file.path);
     } catch (error) {
-      console.error('[Home] Failed to remove recent file:', error);
-      alert('Failed to remove file from recent list');
+      loggers.app(' Failed to remove recent file:', error);
+      showError('Failed to remove file from recent list');
     }
   }, [recentFiles, setRecentFiles]);
 
@@ -368,7 +377,7 @@ export const Home: React.FC = () => {
 
   // Check if papers are already downloaded
   const checkDownloadedPapers = useCallback(async (papers: ArxivPaper[]) => {
-    const { exists } = await import("@tauri-apps/plugin-fs");
+    const { exists } = await import('@tauri-apps/plugin-fs');
     const downloaded = new Set<string>();
 
     for (const paper of papers) {
@@ -404,7 +413,7 @@ export const Home: React.FC = () => {
         onError: (error) => {
           setDownloadingPaper(null);
           alert(`Failed to download paper: ${error.message ?? 'Unknown error'}`);
-        }
+        },
       });
     } catch (error) {
       // Error already handled in onError callback
@@ -489,7 +498,7 @@ export const Home: React.FC = () => {
             type="file"
             accept=".pdf"
             onChange={() => {
-              console.log('[DEBUG] File input onChange triggered');
+              loggers.app(' File input onChange triggered');
               handleFileSelect();
             }}
             className="hidden"
@@ -507,7 +516,7 @@ export const Home: React.FC = () => {
               <div className="flex justify-center mb-4">
                 <div className="relative">
                   <img src="/logo.png" alt="Logo" className="w-12 h-12" />
-                  <div className="absolute inset-0 w-12 h-12 bg-blue-600/20 rounded-full blur-xl"></div>
+                  <div className="absolute inset-0 w-12 h-12 bg-blue-600/20 rounded-full blur-xl" />
                 </div>
               </div>
 

@@ -36,7 +36,7 @@ export interface HybridRagIndex {
  */
 function reciprocalRankFusion(
   results: Map<string, { ranks: number[]; scores: number[] }>,
-  k = 60
+  k = 60,
 ): Map<string, number> {
   const fusedScores = new Map<string, number>();
 
@@ -59,7 +59,7 @@ function weightedFusion(
   tfidfResults: Array<{ chunk: TextChunk; score: number }>,
   semanticResults: VectorSearchResult[],
   tfidfWeight = 0.4,
-  semanticWeight = 0.6
+  semanticWeight = 0.6,
 ): Map<string, { tfidfScore: number; semanticScore: number; fusedScore: number }> {
   const fusedScores = new Map<string, { tfidfScore: number; semanticScore: number; fusedScore: number }>();
 
@@ -125,7 +125,7 @@ export class HybridRAG {
     options?: {
       chunkStrategy?: 'semantic' | 'sliding' | 'hierarchical';
       forceRebuild?: boolean;
-    }
+    },
   ): Promise<HybridRagIndex> {
     const { chunkStrategy = 'semantic', forceRebuild = false } = options ?? {};
 
@@ -240,7 +240,7 @@ export class HybridRAG {
       fusionMethod?: 'weighted' | 'rrf';
       tfidfCandidates?: number;
       semanticCandidates?: number;
-    }
+    },
   ): Promise<HybridSearchResult[]> {
     const {
       topK = 5,
@@ -278,7 +278,7 @@ export class HybridRAG {
 
     // Step 3: Fusion
     console.log(`[HybridRAG] Fusing results (method: ${fusionMethod})...`);
-    let finalResults: HybridSearchResult[] = [];
+    const finalResults: HybridSearchResult[] = [];
 
     if (fusionMethod === 'rrf') {
       // Reciprocal Rank Fusion

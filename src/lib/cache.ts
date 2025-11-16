@@ -92,7 +92,7 @@ class CacheManager {
       title: title || this.extractFilename(path),
       lastAccessed: now,
       addedDate: now,
-      ...metadata
+      ...metadata,
     };
     
     this.recentFiles.unshift(recentFile);
