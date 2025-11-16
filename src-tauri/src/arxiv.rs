@@ -4,14 +4,11 @@ use quick_xml::Reader;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs;
 
 lazy_static! {
     static ref CATEGORY_MAP: HashMap<String, String> = {
-        let categories_json =
-            fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/categories.json"))
-                .expect("Failed to read categories.json");
-        serde_json::from_str(&categories_json).expect("Failed to parse categories.json")
+        let categories_json = include_str!("categories.json");
+        serde_json::from_str(categories_json).expect("Failed to parse categories.json")
     };
 }
 
