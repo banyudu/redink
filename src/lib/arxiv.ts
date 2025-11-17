@@ -127,11 +127,11 @@ export async function searchArxivPapers(
     return papers;
   } catch (error: unknown) {
     loggers.app('[ArXiv API] Search failed with error:', error);
-    const errorMessage = error.message || String(error);
+    const errorMessage = (error as Error)?.message || String(error);
     loggers.app('[ArXiv API] Detailed error for user:', {
       originalError: error,
       message: errorMessage,
-      stack: error.stack,
+      stack: (error as Error)?.stack,
     });
     throw new Error(`ArXiv search failed: ${errorMessage}`);
   }
@@ -154,11 +154,11 @@ export async function getFeaturedPapers(maxResults = 12): Promise<ArxivPaper[]> 
     return papers;
   } catch (error: unknown) {
     loggers.app('[ArXiv API] Failed to get featured papers:', error);
-    const errorMessage = error.message || String(error);
+    const errorMessage = (error as Error)?.message || String(error);
     loggers.app('[ArXiv API] Detailed error for user:', {
       originalError: error,
       message: errorMessage,
-      stack: error.stack,
+      stack: (error as Error)?.stack,
     });
     throw new Error(`Failed to fetch featured papers: ${errorMessage}`);
   }
@@ -186,7 +186,7 @@ export async function searchByCategory(
     return papers;
   } catch (error: unknown) {
     loggers.app('[ArXiv API] Failed to search by category:', error);
-    throw new Error(`Failed to search by category: ${error.message || String(error)}`);
+    throw new Error(`Failed to search by category: ${(error as Error)?.message || String(error)}`);
   }
 }
 
@@ -421,11 +421,11 @@ export async function getPapersByCategories(
     return papers;
   } catch (error: unknown) {
     loggers.app('[ArXiv API] Failed to get papers by categories:', error);
-    const errorMessage = error.message || String(error);
+    const errorMessage = (error as Error)?.message || String(error);
     loggers.app('[ArXiv API] Detailed error for user:', {
       originalError: error,
       message: errorMessage,
-      stack: error.stack,
+      stack: (error as Error)?.stack,
       categories,
     });
     throw new Error(`Failed to get papers by categories: ${errorMessage}`);

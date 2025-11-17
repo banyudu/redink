@@ -142,11 +142,11 @@ export const Home: React.FC = () => {
         );
       } catch (error: unknown) {
         loggers.app(' Failed to load papers:', error);
-        const errorMessage = error.message || 'Unknown error occurred';
+        const errorMessage = (error as Error).message || 'Unknown error occurred';
         loggers.app(' Detailed error info:', {
           originalError: error,
           message: errorMessage,
-          stack: error.stack,
+          stack: (error as Error).stack,
           selectedCategories,
           forceRefresh,
         });
@@ -234,11 +234,11 @@ export const Home: React.FC = () => {
         loggers.app(' Search results:', papers.length);
       } catch (error: unknown) {
         loggers.app(' Search failed:', error);
-        const errorMessage = error.message || 'Unknown search error';
+        const errorMessage = (error as Error).message || 'Unknown search error';
         loggers.app(' Detailed search error info:', {
           originalError: error,
           message: errorMessage,
-          stack: error.stack,
+          stack: (error as Error).stack,
           searchQuery: `all:${arxivQuery}`,
         });
         setPapersError(`Search failed: ${errorMessage}. Please try again with different keywords.`);

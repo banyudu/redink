@@ -4,15 +4,7 @@ import { showError } from '@/lib/toast-manager';
 import { useAppStore } from '@/store';
 import { readFile } from '@tauri-apps/plugin-fs';
 import { Command } from '@tauri-apps/plugin-shell';
-import {
-  BookOpen,
-  FileText,
-  Loader2,
-  Maximize2,
-  RotateCw,
-  ZoomIn,
-  ZoomOut,
-} from 'lucide-react';
+import { BookOpen, FileText, Loader2, Maximize2, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { useNavigate } from 'react-router-dom';
@@ -43,7 +35,9 @@ interface PDFViewerProps {
  */
 function extractArxivId(text: string): string | null {
   // Match arxiv.org URLs
-  const urlMatch = text.match(/arxiv\.org\/(?:abs|pdf)\/([a-zA-Z-]+\/\d+|\d+\.\d+)(?:v\d+)?(?:\.pdf)?/i);
+  const urlMatch = text.match(
+    /arxiv\.org\/(?:abs|pdf)\/([a-zA-Z-]+\/\d+|\d+\.\d+)(?:v\d+)?(?:\.pdf)?/i,
+  );
   if (urlMatch) {
     return urlMatch[1];
   }
@@ -59,7 +53,15 @@ function extractArxivId(text: string): string | null {
 
 export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }) => {
   const navigate = useNavigate();
-  const { pdfViewerScale, setPdfViewerScale, setReadingProgress, getReadingProgress, addRecentFile, setCurrentPaper, setLastSelectedPdfPath } = useAppStore();
+  const {
+    pdfViewerScale,
+    setPdfViewerScale,
+    setReadingProgress,
+    getReadingProgress,
+    addRecentFile,
+    setCurrentPaper,
+    setLastSelectedPdfPath,
+  } = useAppStore();
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(pdfViewerScale);
   const [rotation, setRotation] = useState(0);
@@ -70,7 +72,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   const [downloadingArxiv, setDownloadingArxiv] = useState(false);
 
   // Detect if we're on macOS
-  const isMacOS = typeof window !== 'undefined' && window.navigator?.platform.toUpperCase().indexOf('MAC') >= 0;
+  const isMacOS =
+    typeof window !== 'undefined' && window.navigator?.platform.toUpperCase().indexOf('MAC') >= 0;
 
   // Use refs to throttle zoom updates and prevent flickering
   const pendingScaleRef = React.useRef<number | null>(null);
@@ -80,29 +83,32 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   const hasRestoredProgressRef = React.useRef(false);
 
   // Handle arXiv paper click
-  const handleArxivPaperClick = useCallback(async (arxivId: string) => {
-    if (downloadingArxiv) {
-      loggers.pdf('Already downloading a paper, ignoring click');
-      return;
-    }
+  const handleArxivPaperClick = useCallback(
+    async (arxivId: string) => {
+      if (downloadingArxiv) {
+        loggers.pdf('Already downloading a paper, ignoring click');
+        return;
+      }
 
-    try {
-      await openArxivPaper(arxivId, {
-        addRecentFile,
-        setCurrentPaper,
-        setLastSelectedPdfPath,
-        navigate,
-        onStart: () => setDownloadingArxiv(true),
-        onComplete: () => setDownloadingArxiv(false),
-        onError: (error) => {
-          setDownloadingArxiv(false);
-          showError(`Failed to open paper: ${error.message ?? 'Unknown error'}`);
-        },
-      });
-    } catch {
-      // Error already handled in onError callback
-    }
-  }, [downloadingArxiv, navigate, addRecentFile, setCurrentPaper, setLastSelectedPdfPath]);
+      try {
+        await openArxivPaper(arxivId, {
+          addRecentFile,
+          setCurrentPaper,
+          setLastSelectedPdfPath,
+          navigate,
+          onStart: () => setDownloadingArxiv(true),
+          onComplete: () => setDownloadingArxiv(false),
+          onError: (error) => {
+            setDownloadingArxiv(false);
+            showError(`Failed to open paper: ${error.message ?? 'Unknown error'}`);
+          },
+        });
+      } catch {
+        // Error already handled in onError callback
+      }
+    },
+    [downloadingArxiv, navigate, addRecentFile, setCurrentPaper, setLastSelectedPdfPath],
+  );
 
   // Persist scale changes to store
   useEffect(() => {
@@ -110,25 +116,28 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   }, [scale, setPdfViewerScale]);
 
   // Save reading progress (debounced)
-  const saveProgress = useCallback((scrollTop: number, scrollLeft: number, page: number) => {
-    if (!filePath) return;
+  const saveProgress = useCallback(
+    (scrollTop: number, scrollLeft: number, page: number) => {
+      if (!filePath) return;
 
-    // Clear existing timeout
-    if (saveProgressTimeoutRef.current) {
-      clearTimeout(saveProgressTimeoutRef.current);
-    }
+      // Clear existing timeout
+      if (saveProgressTimeoutRef.current) {
+        clearTimeout(saveProgressTimeoutRef.current);
+      }
 
-    // Debounce saving to avoid too frequent updates
-    saveProgressTimeoutRef.current = window.setTimeout(() => {
-      setReadingProgress(filePath, {
-        scrollTop,
-        scrollLeft,
-        currentPage: page,
-        lastUpdated: Date.now(),
-      });
-      loggers.pdf('Saved reading progress:', { scrollTop, scrollLeft, page });
-    }, 500);
-  }, [filePath, setReadingProgress]);
+      // Debounce saving to avoid too frequent updates
+      saveProgressTimeoutRef.current = window.setTimeout(() => {
+        setReadingProgress(filePath, {
+          scrollTop,
+          scrollLeft,
+          currentPage: page,
+          lastUpdated: Date.now(),
+        });
+        loggers.pdf('Saved reading progress:', { scrollTop, scrollLeft, page });
+      }, 500);
+    },
+    [filePath, setReadingProgress],
+  );
 
   // Detect current visible page based on scroll position
   const detectCurrentPage = useCallback((container: HTMLDivElement) => {
@@ -155,21 +164,29 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   }, []);
 
   // Handle scroll events
-  const handleScroll = useCallback((e: Event) => {
-    const container = e.target as HTMLDivElement;
-    if (!container) return;
+  const handleScroll = useCallback(
+    (e: Event) => {
+      const container = e.target as HTMLDivElement;
+      if (!container) return;
 
-    const scrollTop = container.scrollTop;
-    const scrollLeft = container.scrollLeft;
-    const page = detectCurrentPage(container);
+      const scrollTop = container.scrollTop;
+      const scrollLeft = container.scrollLeft;
+      const page = detectCurrentPage(container);
 
-    setCurrentPage(page);
-    saveProgress(scrollTop, scrollLeft, page);
-  }, [detectCurrentPage, saveProgress]);
+      setCurrentPage(page);
+      saveProgress(scrollTop, scrollLeft, page);
+    },
+    [detectCurrentPage, saveProgress],
+  );
 
   // Restore reading progress after PDF is loaded
   useEffect(() => {
-    if (!scrollContainerRef.current || !filePath || totalPages === 0 || hasRestoredProgressRef.current) {
+    if (
+      !scrollContainerRef.current ||
+      !filePath ||
+      totalPages === 0 ||
+      hasRestoredProgressRef.current
+    ) {
       return;
     }
 
@@ -259,7 +276,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
 
           // Try combining with both
           if (!arxivId && prevSibling && nextSibling) {
-            const combinedText = (prevSibling.textContent || '') + text + (nextSibling.textContent || '');
+            const combinedText =
+              (prevSibling.textContent || '') + text + (nextSibling.textContent || '');
             arxivId = extractArxivId(combinedText);
           }
         }
@@ -359,11 +377,13 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
           // Check if any added node contains text layer or annotation layer
           const hasRelevantLayer = Array.from(mutation.addedNodes).some((node) => {
             if (node instanceof Element) {
-              return node.classList.contains('react-pdf__Page__textContent') ||
+              return (
+                node.classList.contains('react-pdf__Page__textContent') ||
                 node.querySelector('.react-pdf__Page__textContent') ||
                 node.classList.contains('react-pdf__Page__annotations') ||
                 node.querySelector('.react-pdf__Page__annotations') ||
-                node.tagName === 'A';
+                node.tagName === 'A'
+              );
             }
             return false;
           });
@@ -398,91 +418,94 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
     };
   }, [handleArxivPaperClick, totalPages]);
 
-  const pdfContainerRef = useCallback((node: HTMLDivElement | null) => {
-    if (node) {
-      // Use native event listener with passive: false to prevent default zoom
-      const handleWheelNative = (e: WheelEvent) => {
-        // Check for zoom gestures: Ctrl/Cmd+wheel OR trackpad pinch (ctrlKey is set on macOS for pinch)
-        if (e.ctrlKey || e.metaKey) {
+  const pdfContainerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node) {
+        // Use native event listener with passive: false to prevent default zoom
+        const handleWheelNative = (e: WheelEvent) => {
+          // Check for zoom gestures: Ctrl/Cmd+wheel OR trackpad pinch (ctrlKey is set on macOS for pinch)
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation(); // Prevent other handlers from firing
+
+            // Calculate delta - for pinch gestures, deltaY will be larger
+            const delta = -e.deltaY / 1000;
+
+            // Accumulate scale changes and apply them in the next animation frame
+            // This prevents multiple re-renders during rapid wheel events
+            if (pendingScaleRef.current === null) {
+              pendingScaleRef.current = scale;
+            }
+
+            pendingScaleRef.current = Math.max(0.5, Math.min(pendingScaleRef.current + delta, 3.0));
+
+            // Cancel previous animation frame if it exists
+            if (rafIdRef.current !== null) {
+              window.window.cancelAnimationFrame(rafIdRef.current);
+            }
+
+            // Schedule update for next animation frame
+            // This batches all zoom updates from rapid gestures into a single re-render
+            rafIdRef.current = window.requestAnimationFrame(() => {
+              if (pendingScaleRef.current !== null) {
+                setScale(pendingScaleRef.current);
+                pendingScaleRef.current = null;
+              }
+              rafIdRef.current = null;
+            });
+          }
+        };
+
+        // Also handle gesturestart/gesturechange/gestureend for Safari/WebKit
+        const handleGestureStart = (e: Event) => {
           e.preventDefault();
           e.stopPropagation();
-          e.stopImmediatePropagation(); // Prevent other handlers from firing
+        };
 
-          // Calculate delta - for pinch gestures, deltaY will be larger
-          const delta = -e.deltaY / 1000;
+        const handleGestureChange = (e: Event) => {
+          e.preventDefault();
+          e.stopPropagation();
 
-          // Accumulate scale changes and apply them in the next animation frame
-          // This prevents multiple re-renders during rapid wheel events
-          if (pendingScaleRef.current === null) {
-            pendingScaleRef.current = scale;
-          }
-
-          pendingScaleRef.current = Math.max(0.5, Math.min(pendingScaleRef.current + delta, 3.0));
-
-          // Cancel previous animation frame if it exists
-          if (rafIdRef.current !== null) {
-            window.window.cancelAnimationFrame(rafIdRef.current);
-          }
-
-          // Schedule update for next animation frame
-          // This batches all zoom updates from rapid gestures into a single re-render
-          rafIdRef.current = window.requestAnimationFrame(() => {
-            if (pendingScaleRef.current !== null) {
-              setScale(pendingScaleRef.current);
-              pendingScaleRef.current = null;
+          const gestureEvent = e as unknown as { scale: number }; // WebKit GestureEvent
+          if (gestureEvent.scale) {
+            if (pendingScaleRef.current === null) {
+              pendingScaleRef.current = scale;
             }
-            rafIdRef.current = null;
-          });
-        }
-      };
 
-      // Also handle gesturestart/gesturechange/gestureend for Safari/WebKit
-      const handleGestureStart = (e: Event) => {
-        e.preventDefault();
-        e.stopPropagation();
-      };
+            pendingScaleRef.current = Math.max(0.5, Math.min(scale * gestureEvent.scale, 3.0));
 
-      const handleGestureChange = (e: Event) => {
-        e.preventDefault();
-        e.stopPropagation();
+            if (rafIdRef.current !== null) {
+              window.cancelAnimationFrame(rafIdRef.current);
+            }
 
-        const gestureEvent = e as unknown as { scale: number }; // WebKit GestureEvent
-        if (gestureEvent.scale) {
-          if (pendingScaleRef.current === null) {
-            pendingScaleRef.current = scale;
+            rafIdRef.current = window.requestAnimationFrame(() => {
+              if (pendingScaleRef.current !== null) {
+                setScale(pendingScaleRef.current);
+                pendingScaleRef.current = null;
+              }
+              rafIdRef.current = null;
+            });
           }
+        };
 
-          pendingScaleRef.current = Math.max(0.5, Math.min(scale * gestureEvent.scale, 3.0));
+        node.addEventListener('wheel', handleWheelNative, { passive: false });
+        node.addEventListener('gesturestart', handleGestureStart, { passive: false });
+        node.addEventListener('gesturechange', handleGestureChange, { passive: false });
 
+        return () => {
+          node.removeEventListener('wheel', handleWheelNative);
+          node.removeEventListener('gesturestart', handleGestureStart);
+          node.removeEventListener('gesturechange', handleGestureChange);
+          // Clean up pending animation frame on unmount
           if (rafIdRef.current !== null) {
             window.cancelAnimationFrame(rafIdRef.current);
           }
-
-          rafIdRef.current = window.requestAnimationFrame(() => {
-            if (pendingScaleRef.current !== null) {
-              setScale(pendingScaleRef.current);
-              pendingScaleRef.current = null;
-            }
-            rafIdRef.current = null;
-          });
-        }
-      };
-
-      node.addEventListener('wheel', handleWheelNative, { passive: false });
-      node.addEventListener('gesturestart', handleGestureStart, { passive: false });
-      node.addEventListener('gesturechange', handleGestureChange, { passive: false });
-
-      return () => {
-        node.removeEventListener('wheel', handleWheelNative);
-        node.removeEventListener('gesturestart', handleGestureStart);
-        node.removeEventListener('gesturechange', handleGestureChange);
-        // Clean up pending animation frame on unmount
-        if (rafIdRef.current !== null) {
-          window.cancelAnimationFrame(rafIdRef.current);
-        }
-      };
-    }
-  }, [scale]);
+        };
+      }
+    },
+    [scale],
+  );
 
   // Load file data when filePath changes
   useEffect(() => {
@@ -536,7 +559,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
       } catch (err: unknown) {
         if (!cancelled) {
           loggers.pdf(' Error reading PDF file:', err);
-          setError(`Failed to read file: ${err?.message ?? 'Unknown error'}`);
+          setError(`Failed to read file: ${(err as Error)?.message ?? 'Unknown error'}`);
           setLoading(false);
         }
       }
@@ -551,12 +574,17 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
 
   // Debug: Log when fileData changes
   useEffect(() => {
-    loggers.pdf(' fileData changed:', fileData ? {
-      size: fileData.size,
-      type: fileData.type,
-      isBlob: fileData instanceof Blob,
-      constructor: fileData.constructor.name,
-    } : 'null');
+    loggers.pdf(
+      ' fileData changed:',
+      fileData
+        ? {
+            size: fileData.size,
+            type: fileData.type,
+            isBlob: fileData instanceof Blob,
+            constructor: fileData.constructor.name,
+          }
+        : 'null',
+    );
   }, [fileData]);
 
   // Document loading handlers
@@ -571,11 +599,11 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   const onDocumentLoadError = useCallback((error: unknown) => {
     loggers.pdf(' Error loading PDF document:', error);
     loggers.pdf(' Error details:', {
-      message: error?.message,
-      name: error?.name,
-      stack: error?.stack,
+      message: (error as Error)?.message,
+      name: (error as Error)?.name,
+      stack: (error as Error)?.stack,
     });
-    setError(`Failed to load PDF: ${error?.message ?? 'Unknown error'}`);
+    setError(`Failed to load PDF: ${(error as Error)?.message ?? 'Unknown error'}`);
     setLoading(false);
   }, []);
 
@@ -588,11 +616,11 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
 
   // Zoom handlers
   const zoomIn = useCallback(() => {
-    setScale(prev => Math.min(prev + 0.25, 3.0));
+    setScale((prev) => Math.min(prev + 0.25, 3.0));
   }, []);
 
   const zoomOut = useCallback(() => {
-    setScale(prev => Math.max(prev - 0.25, 0.5));
+    setScale((prev) => Math.max(prev - 0.25, 0.5));
   }, []);
 
   const resetZoom = useCallback(() => {
@@ -601,7 +629,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
 
   // Rotation handler
   const rotate = useCallback(() => {
-    setRotation(prev => (prev + 90) % 360);
+    setRotation((prev) => (prev + 90) % 360);
   }, []);
 
   // Fit to container width - simplified for react-pdf
@@ -643,16 +671,17 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
     }
   }, [filePath, isMacOS]);
 
-
   // Handle case when no file path is provided
   if (!filePath) {
     return (
-      <div className={`flex flex-col items-center justify-center h-full ${className}`}>
-        <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-gray-400 to-gray-500 rounded-lg flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-8 h-8 text-white" />
+      <div className={`flex h-full flex-col items-center justify-center ${className}`}>
+        <div className="glass rounded-lg border border-white/20 p-8 text-center backdrop-blur-xl">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-gray-400 to-gray-500">
+            <FileText className="h-8 w-8 text-white" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No PDF Loaded</h3>
+          <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+            No PDF Loaded
+          </h3>
           <p className="text-gray-600 dark:text-gray-300">Select a document to view</p>
         </div>
       </div>
@@ -660,13 +689,18 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
   }
 
   return (
-    <div className={`flex flex-col h-full glass rounded-lg border border-white/20 backdrop-blur-xl relative ${className}`} style={{ minHeight: '400px' }}>
+    <div
+      className={`glass relative flex h-full flex-col rounded-lg border border-white/20 backdrop-blur-xl ${className}`}
+      style={{ minHeight: '400px' }}
+    >
       {/* Loading Overlay - Fixed dimensions to prevent layout shift */}
       {loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg">
-          <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
-            <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Loading PDF</h3>
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-lg bg-white/90 backdrop-blur-sm dark:bg-gray-900/90">
+          <div className="glass rounded-lg border border-white/20 p-8 text-center backdrop-blur-xl">
+            <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-blue-500" />
+            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+              Loading PDF
+            </h3>
             <p className="text-gray-600 dark:text-gray-300">Processing your document...</p>
           </div>
         </div>
@@ -674,35 +708,47 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
 
       {/* Downloading ArXiv Paper Overlay - Fixed dimensions to prevent layout shift */}
       {downloadingArxiv && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg">
-          <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
-            <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Opening ArXiv Paper</h3>
-            <p className="text-gray-600 dark:text-gray-300">Downloading and opening the referenced paper...</p>
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-lg bg-white/90 backdrop-blur-sm dark:bg-gray-900/90">
+          <div className="glass rounded-lg border border-white/20 p-8 text-center backdrop-blur-xl">
+            <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-purple-500" />
+            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+              Opening ArXiv Paper
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300">
+              Downloading and opening the referenced paper...
+            </p>
           </div>
         </div>
       )}
 
       {/* Error Overlay - Fixed dimensions to prevent layout shift */}
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg">
-          <div className="glass rounded-lg p-8 border border-white/20 backdrop-blur-xl text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-white" />
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-lg bg-white/90 backdrop-blur-sm dark:bg-gray-900/90">
+          <div className="glass rounded-lg border border-white/20 p-8 text-center backdrop-blur-xl">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-pink-600">
+              <FileText className="h-8 w-8 text-white" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading PDF</h3>
-            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+              Error Loading PDF
+            </h3>
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         </div>
       )}
 
       {/* Toolbar - Fixed height to prevent layout shift */}
-      <div className="flex items-center justify-between p-4 border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-t-2xl flex-shrink-0" style={{ minHeight: '64px' }}>
+      <div
+        className="flex flex-shrink-0 items-center justify-between rounded-t-2xl border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 p-4 dark:from-blue-900/20 dark:to-purple-900/20"
+        style={{ minHeight: '64px' }}
+      >
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
-            <FileText className="w-4 h-4 text-white" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-purple-600">
+            <FileText className="h-4 w-4 text-white" />
           </div>
-          <span className="font-medium text-gray-900 dark:text-white text-sm" style={{ minWidth: '120px' }}>
+          <span
+            className="text-sm font-medium text-gray-900 dark:text-white"
+            style={{ minWidth: '120px' }}
+          >
             PDF Viewer {totalPages > 0 && `(Page ${currentPage} of ${totalPages})`}
           </span>
         </div>
@@ -719,7 +765,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
                   disabled={scale <= 0.5}
                   className="h-8 w-8 p-0"
                 >
-                  <ZoomOut className="w-4 h-4" />
+                  <ZoomOut className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -729,12 +775,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={resetZoom}
-                  className="h-8 px-2 text-xs"
-                >
+                <Button size="sm" variant="ghost" onClick={resetZoom} className="h-8 px-2 text-xs">
                   {Math.round(scale * 100)}%
                 </Button>
               </TooltipTrigger>
@@ -752,7 +793,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
                   disabled={scale >= 3.0}
                   className="h-8 w-8 p-0"
                 >
-                  <ZoomIn className="w-4 h-4" />
+                  <ZoomIn className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -760,18 +801,13 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
               </TooltipContent>
             </Tooltip>
 
-            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2" />
+            <div className="mx-2 h-6 w-px bg-gray-300 dark:bg-gray-600" />
 
             {/* Additional Controls */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={rotate}
-                  className="h-8 w-8 p-0"
-                >
-                  <RotateCw className="w-4 h-4" />
+                <Button size="sm" variant="ghost" onClick={rotate} className="h-8 w-8 p-0">
+                  <RotateCw className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -781,13 +817,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={fitToWidth}
-                  className="h-8 w-8 p-0"
-                >
-                  <Maximize2 className="w-4 h-4" />
+                <Button size="sm" variant="ghost" onClick={fitToWidth} className="h-8 w-8 p-0">
+                  <Maximize2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -798,7 +829,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
             {/* Open in iBooks (macOS only) */}
             {isMacOS && (
               <>
-                <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2" />
+                <div className="mx-2 h-6 w-px bg-gray-300 dark:bg-gray-600" />
 
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -808,7 +839,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
                       onClick={openInIBooks}
                       className="h-8 w-8 p-0"
                     >
-                      <BookOpen className="w-4 h-4" />
+                      <BookOpen className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -835,63 +866,88 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ filePath, className = '' }
             };
           }
         }}
-        className="flex-1 overflow-auto p-2 bg-gray-50 dark:bg-gray-900/50 custom-scrollbar"
+        className="custom-scrollbar flex-1 overflow-auto bg-gray-50 p-2 dark:bg-gray-900/50"
         style={{ minHeight: '300px' }}
       >
-        <div className="flex flex-col items-center gap-2 min-h-full">
-          {fileData && (() => {
-            loggers.pdf(' Rendering Document component with fileData:', {
-              size: fileData.size,
-              type: fileData.type,
-              isBlob: fileData instanceof Blob,
-            });
-            return (
-              <Document
-                file={fileData}
-                onLoadStart={onDocumentLoadStart}
-                onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={onDocumentLoadError}
-                loading={
-                  <div className="flex items-center justify-center p-8" style={{ minHeight: '200px' }}>
-                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin mr-3" />
-                    <span className="text-gray-600">Loading PDF...</span>
-                  </div>
-                }
-                error={
-                  <div className="flex items-center justify-center p-8 text-red-600" style={{ minHeight: '200px' }}>
-                    <FileText className="w-8 h-8 mr-3" />
-                    <span>Failed to load PDF</span>
-                  </div>
-                }
-              >
-                {Array.from(new Array(totalPages), (_, index) => {
-                  const pageNum = index + 1;
-                  return (
-                    <div key={`page_${pageNum}`} className="mb-4" data-page-number={pageNum} style={{ minHeight: '600px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
-                      <Page
-                        pageNumber={pageNum}
-                        scale={scale}
-                        rotate={rotation}
-                        renderTextLayer={true}
-                        renderAnnotationLayer={true}
-                        loading={
-                          <div className="flex items-center justify-center p-8" style={{ minHeight: '600px', width: '600px' }}>
-                            <Loader2 className="w-6 h-6 text-blue-500 animate-spin mr-2" />
-                            <span className="text-sm text-gray-600">Rendering page {pageNum}...</span>
-                          </div>
-                        }
-                        error={
-                          <div className="flex items-center justify-center p-8 text-red-600" style={{ minHeight: '600px', width: '600px' }}>
-                            <span className="text-sm">Failed to render page {pageNum}</span>
-                          </div>
-                        }
-                      />
+        <div className="flex min-h-full flex-col items-center gap-2">
+          {fileData &&
+            (() => {
+              loggers.pdf(' Rendering Document component with fileData:', {
+                size: fileData.size,
+                type: fileData.type,
+                isBlob: fileData instanceof Blob,
+              });
+              return (
+                <Document
+                  file={fileData}
+                  onLoadStart={onDocumentLoadStart}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  onLoadError={onDocumentLoadError}
+                  loading={
+                    <div
+                      className="flex items-center justify-center p-8"
+                      style={{ minHeight: '200px' }}
+                    >
+                      <Loader2 className="mr-3 h-8 w-8 animate-spin text-blue-500" />
+                      <span className="text-gray-600">Loading PDF...</span>
                     </div>
-                  );
-                })}
-              </Document>
-            );
-          })()}
+                  }
+                  error={
+                    <div
+                      className="flex items-center justify-center p-8 text-red-600"
+                      style={{ minHeight: '200px' }}
+                    >
+                      <FileText className="mr-3 h-8 w-8" />
+                      <span>Failed to load PDF</span>
+                    </div>
+                  }
+                >
+                  {Array.from(new Array(totalPages), (_, index) => {
+                    const pageNum = index + 1;
+                    return (
+                      <div
+                        key={`page_${pageNum}`}
+                        className="mb-4"
+                        data-page-number={pageNum}
+                        style={{
+                          minHeight: '600px',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'flex-start',
+                        }}
+                      >
+                        <Page
+                          pageNumber={pageNum}
+                          scale={scale}
+                          rotate={rotation}
+                          renderTextLayer={true}
+                          renderAnnotationLayer={true}
+                          loading={
+                            <div
+                              className="flex items-center justify-center p-8"
+                              style={{ minHeight: '600px', width: '600px' }}
+                            >
+                              <Loader2 className="mr-2 h-6 w-6 animate-spin text-blue-500" />
+                              <span className="text-sm text-gray-600">
+                                Rendering page {pageNum}...
+                              </span>
+                            </div>
+                          }
+                          error={
+                            <div
+                              className="flex items-center justify-center p-8 text-red-600"
+                              style={{ minHeight: '600px', width: '600px' }}
+                            >
+                              <span className="text-sm">Failed to render page {pageNum}</span>
+                            </div>
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </Document>
+              );
+            })()}
         </div>
       </div>
     </div>

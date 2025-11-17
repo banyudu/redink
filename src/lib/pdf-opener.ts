@@ -7,12 +7,12 @@ import { loggers } from './logger'; /**
  * - Referenced papers from within other PDFs
  */
 
-import { extractPdfFromPathWithMeta } from './pdf';
-import { generateFileId } from './utils';
-import { cacheManager, type RecentFile } from './cache';
-import { storageManager } from './storage';
-import { getPaperById, type ArxivPaper } from './arxiv';
 import { exists } from '@tauri-apps/plugin-fs';
+import { getPaperById, type ArxivPaper } from './arxiv';
+import { cacheManager, type RecentFile } from './cache';
+import { extractPdfFromPathWithMeta } from './pdf';
+import { storageManager } from './storage';
+import { generateFileId } from './utils';
 
 export interface OpenPdfOptions {
   // Store functions (from useAppStore)
@@ -87,7 +87,7 @@ export async function openPdfByPath(filePath: string, options: OpenPdfOptions): 
     onComplete?.();
   } catch (error: unknown) {
     loggers.app('[PdfOpener] Failed to open PDF:', error);
-    onError?.(error);
+    onError?.(error as Error);
     throw error;
   }
 }
@@ -146,7 +146,7 @@ export async function openArxivPaper(arxivId: string, options: OpenPdfOptions): 
     });
   } catch (error: unknown) {
     loggers.app('[PdfOpener] Failed to open arXiv paper:', error);
-    onError?.(error);
+    onError?.(error as Error);
     throw error;
   }
 }

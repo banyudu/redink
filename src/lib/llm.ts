@@ -1,5 +1,5 @@
-import { loggers } from './logger';
 import axios from 'axios';
+import { loggers } from './logger';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -27,7 +27,7 @@ export async function chatComplete(messages: ChatMessage[], config?: LlmConfig):
       return content.trim();
     } catch (e: unknown) {
       const last = messages[messages.length - 1];
-      return `Ollama request failed (${e?.message ?? 'unknown error'}). Question: "${last?.content ?? ''}".`;
+      return `Ollama request failed (${(e as Error)?.message ?? 'unknown error'}). Question: "${last?.content ?? ''}".`;
     }
   }
 
@@ -76,9 +76,9 @@ export async function listOllamaModels(config?: { baseUrl?: string }): Promise<s
   try {
     const { data } = await axios.get(`${baseUrl}/api/tags`);
     const models = data?.models ?? [];
-    return models.map((model: unknown) => model.name);
+    return models.map((model: unknown) => (model as any).name);
   } catch (e: unknown) {
-    loggers.app('[LLM] Failed to list Ollama models:', e?.message ?? 'unknown error');
+    loggers.app('[LLM] Failed to list Ollama models:', (e as Error)?.message ?? 'unknown error');
     return [];
   }
 }
