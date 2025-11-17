@@ -1,4 +1,4 @@
-/**
+import { loggers } from './logger'; /**
  * Embedding Service using transformers.js
  * Provides local, offline semantic embeddings for text chunks
  */
@@ -35,14 +35,14 @@ export class EmbeddingService {
    */
   async initialize(): Promise<void> {
     if (this.embedder) return;
-    
+
     if (this.isInitializing && this.initPromise) {
       return this.initPromise;
     }
 
     this.isInitializing = true;
     this.initPromise = this._initialize();
-    
+
     try {
       await this.initPromise;
     } finally {
@@ -51,12 +51,12 @@ export class EmbeddingService {
   }
 
   private async _initialize(): Promise<void> {
-    console.log('[Embeddings] Initializing embedding model:', MODEL_NAME);
+    loggers.app('[Embeddings] Initializing embedding model:', MODEL_NAME);
     try {
       this.embedder = await pipeline('feature-extraction', MODEL_NAME);
-      console.log('[Embeddings] Model loaded successfully');
+      loggers.app('[Embeddings] Model loaded successfully');
     } catch (error) {
-      console.error('[Embeddings] Failed to load model:', error);
+      loggers.app('[Embeddings] Failed to load model:', error);
       throw new Error(`Failed to initialize embedding model: ${error}`);
     }
   }
@@ -83,7 +83,7 @@ export class EmbeddingService {
       const embedding = Array.from(output.data) as number[];
       return embedding;
     } catch (error) {
-      console.error('[Embeddings] Failed to generate embedding:', error);
+      loggers.app('[Embeddings] Failed to generate embedding:', error);
       throw error;
     }
   }
@@ -105,12 +105,12 @@ export class EmbeddingService {
     // Process in batches to avoid memory issues
     for (let i = 0; i < texts.length; i += batchSize) {
       const batch = texts.slice(i, i + batchSize);
-      console.log(`[Embeddings] Processing batch ${i / batchSize + 1}/${Math.ceil(texts.length / batchSize)}`);
-      
-      const batchEmbeddings = await Promise.all(
-        batch.map(text => this.embed(text)),
+      loggers.app(
+        `[Embeddings] Processing batch ${i / batchSize + 1}/${Math.ceil(texts.length / batchSize)}`,
       );
-      
+
+      const batchEmbeddings = await Promise.all(batch.map((text) => this.embed(text)));
+
       embeddings.push(...batchEmbeddings);
     }
 
@@ -141,4 +141,3 @@ export class EmbeddingService {
 
 // Export singleton instance
 export const embeddingService = EmbeddingService.getInstance();
-

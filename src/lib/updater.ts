@@ -1,3 +1,4 @@
+import { loggers } from './logger';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 
@@ -7,30 +8,29 @@ import { relaunch } from '@tauri-apps/plugin-process';
  */
 export async function checkForUpdates(): Promise<void> {
   try {
-    console.log('[Updater] Checking for updates...');
-    
+    loggers.app('[Updater] Checking for updates...');
+
     const update = await check();
-    
+
     if (update === null) {
-      console.log('[Updater] No updates available');
+      loggers.app('[Updater] No updates available');
       return;
     }
 
-    console.log('[Updater] Update available:', update.version);
-    console.log('[Updater] Current version:', update.currentVersion);
-    console.log('[Updater] Release date:', update.date);
-    console.log('[Updater] Release notes:', update.body);
+    loggers.app('[Updater] Update available:', update.version);
+    loggers.app('[Updater] Current version:', update.currentVersion);
+    loggers.app('[Updater] Release date:', update.date);
+    loggers.app('[Updater] Release notes:', update.body);
 
     // The updater plugin will show a native dialog if dialog: true in config
     // If user accepts, download and install the update
     await update.downloadAndInstall();
-    
+
     // Relaunch the app after update
-    console.log('[Updater] Update installed, relaunching...');
+    loggers.app('[Updater] Update installed, relaunching...');
     await relaunch();
-    
   } catch (error) {
-    console.error('[Updater] Failed to check for updates:', error);
+    loggers.app('[Updater] Failed to check for updates:', error);
     // Don't throw error - update checking should not break the app
   }
 }
@@ -41,20 +41,19 @@ export async function checkForUpdates(): Promise<void> {
  */
 export async function checkForUpdatesQuietly(): Promise<boolean> {
   try {
-    console.log('[Updater] Checking for updates (quiet mode)...');
-    
+    loggers.app('[Updater] Checking for updates (quiet mode)...');
+
     const update = await check();
-    
+
     if (update === null) {
-      console.log('[Updater] No updates available');
+      loggers.app('[Updater] No updates available');
       return false;
     }
 
-    console.log('[Updater] Update available:', update.version);
+    loggers.app('[Updater] Update available:', update.version);
     return true;
-    
   } catch (error) {
-    console.error('[Updater] Failed to check for updates:', error);
+    loggers.app('[Updater] Failed to check for updates:', error);
     return false;
   }
 }
@@ -65,20 +64,19 @@ export async function checkForUpdatesQuietly(): Promise<boolean> {
  * @returns Function to stop the periodic checks
  */
 export function scheduleUpdateChecks(intervalMs = 3600000): () => void {
-  console.log('[Updater] Scheduling periodic update checks every', intervalMs / 1000, 'seconds');
-  
+  loggers.app('[Updater] Scheduling periodic update checks every', intervalMs / 1000, 'seconds');
+
   // Check immediately on startup
   checkForUpdatesQuietly();
-  
+
   // Then check periodically
   const intervalId = setInterval(() => {
     checkForUpdatesQuietly();
   }, intervalMs);
-  
+
   // Return cleanup function
   return () => {
-    console.log('[Updater] Stopping periodic update checks');
+    loggers.app('[Updater] Stopping periodic update checks');
     clearInterval(intervalId);
   };
 }
-

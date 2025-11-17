@@ -1,4 +1,5 @@
-import { BaseDirectory, exists, readTextFile, writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, exists, mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import { loggers } from './logger';
 import { generateFileId } from './utils';
 
 export interface RecentFile {
@@ -24,11 +25,11 @@ class CacheManager {
       if (!(await exists(CACHE_DIR, { baseDir: BaseDirectory.AppData }))) {
         await mkdir(CACHE_DIR, { baseDir: BaseDirectory.AppData, recursive: true });
       }
-      
+
       // Load existing recent files
       await this.loadRecentFiles();
     } catch (error) {
-      console.error('Failed to initialize cache manager:', error);
+      loggers.app('Failed to initialize cache manager:', error);
     }
   }
 
@@ -38,12 +39,12 @@ class CacheManager {
       if (await exists(filePath, { baseDir: BaseDirectory.AppData })) {
         const content = await readTextFile(filePath, { baseDir: BaseDirectory.AppData });
         this.recentFiles = JSON.parse(content);
-        
+
         // Clean up files that no longer exist
         await this.cleanupMissingFiles();
       }
     } catch (error) {
-      console.error('Failed to load recent files:', error);
+      loggers.app('Failed to load recent files:', error);
       this.recentFiles = [];
     }
   }
@@ -54,37 +55,41 @@ class CacheManager {
       const content = JSON.stringify(this.recentFiles, null, 2);
       await writeTextFile(filePath, content, { baseDir: BaseDirectory.AppData });
     } catch (error) {
-      console.error('Failed to save recent files:', error);
+      loggers.app('Failed to save recent files:', error);
     }
   }
 
   private async cleanupMissingFiles(): Promise<void> {
     const validFiles: RecentFile[] = [];
-    
+
     for (const file of this.recentFiles) {
       try {
         if (await exists(file.path)) {
           validFiles.push(file);
         }
-      } catch (error) {
+      } catch {
         // File doesn't exist, skip it
-        console.log(`Removing missing file from recent: ${file.path}`);
+        loggers.app(`Removing missing file from recent: ${file.path}`);
       }
     }
-    
+
     if (validFiles.length !== this.recentFiles.length) {
       this.recentFiles = validFiles;
       await this.saveRecentFiles();
     }
   }
 
-  async addRecentFile(path: string, title: string, metadata?: { pageCount?: number; fileSize?: number }): Promise<void> {
+  async addRecentFile(
+    path: string,
+    title: string,
+    metadata?: { pageCount?: number; fileSize?: number },
+  ): Promise<void> {
     const now = Date.now();
     const id = this.generateId(path);
-    
+
     // Remove if already exists
-    this.recentFiles = this.recentFiles.filter(f => f.id !== id);
-    
+    this.recentFiles = this.recentFiles.filter((f) => f.id !== id);
+
     // Add to beginning
     const recentFile: RecentFile = {
       id,
@@ -94,29 +99,29 @@ class CacheManager {
       addedDate: now,
       ...metadata,
     };
-    
+
     this.recentFiles.unshift(recentFile);
-    
+
     // Keep only max files
     if (this.recentFiles.length > MAX_RECENT_FILES) {
       this.recentFiles = this.recentFiles.slice(0, MAX_RECENT_FILES);
     }
-    
+
     await this.saveRecentFiles();
   }
 
   async updateLastAccessed(path: string): Promise<void> {
     const id = this.generateId(path);
-    const fileIndex = this.recentFiles.findIndex(f => f.id === id);
-    
+    const fileIndex = this.recentFiles.findIndex((f) => f.id === id);
+
     if (fileIndex !== -1) {
       // Update timestamp
       this.recentFiles[fileIndex].lastAccessed = Date.now();
-      
+
       // Move to front
       const file = this.recentFiles.splice(fileIndex, 1)[0];
       this.recentFiles.unshift(file);
-      
+
       await this.saveRecentFiles();
     }
   }
@@ -127,7 +132,7 @@ class CacheManager {
 
   async removeRecentFile(path: string): Promise<void> {
     const id = this.generateId(path);
-    this.recentFiles = this.recentFiles.filter(f => f.id !== id);
+    this.recentFiles = this.recentFiles.filter((f) => f.id !== id);
     await this.saveRecentFiles();
   }
 
@@ -148,4 +153,4 @@ class CacheManager {
 export const cacheManager = new CacheManager();
 
 // Initialize on module load
-cacheManager.initialize().catch(console.error);
+cacheManager.initialize().catch(loggers.app);

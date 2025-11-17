@@ -1,4 +1,4 @@
-/**
+import { loggers } from './logger'; /**
  * Hybrid RAG System
  * Combines TF-IDF (keyword) and Semantic (embedding) retrieval with RRF fusion
  */
@@ -61,7 +61,10 @@ function weightedFusion(
   tfidfWeight = 0.4,
   semanticWeight = 0.6,
 ): Map<string, { tfidfScore: number; semanticScore: number; fusedScore: number }> {
-  const fusedScores = new Map<string, { tfidfScore: number; semanticScore: number; fusedScore: number }>();
+  const fusedScores = new Map<
+    string,
+    { tfidfScore: number; semanticScore: number; fusedScore: number }
+  >();
 
   // Add TF-IDF scores
   for (const result of tfidfResults) {
@@ -103,7 +106,7 @@ export class HybridRAG {
     let hash = 0;
     for (let i = 0; i < Math.min(text.length, 10000); i++) {
       const char = text.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash).toString(36);
@@ -137,7 +140,7 @@ export class HybridRAG {
 
     // Check if index already exists in memory
     if (!forceRebuild && this.indexes.has(documentId)) {
-      console.log('[HybridRAG] Using cached index for:', documentId);
+      loggers.app('[HybridRAG] Using cached index for:', documentId);
       await ragCache.updateDocumentAccess(documentId);
       return this.indexes.get(documentId)!;
     }
@@ -145,55 +148,60 @@ export class HybridRAG {
     // Check cache validity
     const cachedMeta = ragCache.getDocumentCache(documentId);
     const hasVectorStore = await vectorStore.hasDocument(documentId);
-    
-    if (!forceRebuild && cachedMeta && ragCache.isDocumentCacheValid(documentId, textHash) && hasVectorStore) {
-      console.log('[HybridRAG] Loading from cache:', documentId);
+
+    if (
+      !forceRebuild &&
+      cachedMeta &&
+      ragCache.isDocumentCacheValid(documentId, textHash) &&
+      hasVectorStore
+    ) {
+      loggers.app('[HybridRAG] Loading from cache:', documentId);
       await ragCache.updateDocumentAccess(documentId);
       // We still need to rebuild TF-IDF index since it's in-memory
     }
 
-    console.log('[HybridRAG] Building hybrid index for:', documentId);
+    loggers.app('[HybridRAG] Building hybrid index for:', documentId);
 
     // Step 1: Enhanced chunking
-    console.log('[HybridRAG] Chunking with strategy:', chunkStrategy);
+    loggers.app('[HybridRAG] Chunking with strategy:', chunkStrategy);
     const enhancedChunks = smartChunk(text, chunkStrategy, {
       targetSize: 800,
       overlap: 150,
     }) as EnhancedTextChunk[];
-    
-    console.log(`[HybridRAG] Created ${enhancedChunks.length} chunks`);
+
+    loggers.app(`[HybridRAG] Created ${enhancedChunks.length} chunks`);
 
     // Step 2: Build TF-IDF index (fast, in-memory)
-    console.log('[HybridRAG] Building TF-IDF index...');
+    loggers.app('[HybridRAG] Building TF-IDF index...');
     const tfidfIndex = buildIndex(enhancedChunks);
 
     // Step 3: Build semantic index (embeddings + vector store)
     let hasSemanticIndex = false;
-    
+
     if (!hasVectorStore || forceRebuild) {
       try {
-        console.log('[HybridRAG] Initializing vector store...');
+        loggers.app('[HybridRAG] Initializing vector store...');
         await vectorStore.initialize();
-        
-        console.log('[HybridRAG] Initializing embedding service...');
+
+        loggers.app('[HybridRAG] Initializing embedding service...');
         await embeddingService.initialize();
 
-        console.log('[HybridRAG] Generating embeddings for chunks...');
-        const texts = enhancedChunks.map(c => c.text);
+        loggers.app('[HybridRAG] Generating embeddings for chunks...');
+        const texts = enhancedChunks.map((c) => c.text);
         const embeddings = await embeddingService.embedBatch(texts, 4);
 
-        console.log('[HybridRAG] Storing vectors in ChromaDB...');
+        loggers.app('[HybridRAG] Storing vectors in ChromaDB...');
         await vectorStore.addChunks(documentId, enhancedChunks, embeddings);
-        
+
         hasSemanticIndex = true;
-        console.log('[HybridRAG] Semantic index created successfully');
+        loggers.app('[HybridRAG] Semantic index created successfully');
       } catch (error) {
-        console.error('[HybridRAG] Failed to build semantic index:', error);
-        console.log('[HybridRAG] Falling back to TF-IDF only');
+        loggers.app('[HybridRAG] Failed to build semantic index:', error);
+        loggers.app('[HybridRAG] Falling back to TF-IDF only');
       }
     } else {
       hasSemanticIndex = true;
-      console.log('[HybridRAG] Using existing semantic index');
+      loggers.app('[HybridRAG] Using existing semantic index');
     }
 
     // Create index object
@@ -256,28 +264,28 @@ export class HybridRAG {
       throw new Error(`No index found for document: ${documentId}`);
     }
 
-    console.log(`[HybridRAG] Searching with query: "${query}"`);
+    loggers.app(`[HybridRAG] Searching with query: "${query}"`);
 
     // Step 1: TF-IDF retrieval
-    console.log('[HybridRAG] Running TF-IDF search...');
+    loggers.app('[HybridRAG] Running TF-IDF search...');
     const tfidfResults = tfidfRetrieve(index.tfidfIndex, query, tfidfCandidates);
 
     // Step 2: Semantic retrieval (if available)
     let semanticResults: VectorSearchResult[] = [];
-    
+
     if (index.hasSemanticIndex) {
       try {
-        console.log('[HybridRAG] Running semantic search...');
+        loggers.app('[HybridRAG] Running semantic search...');
         const queryEmbedding = await embeddingService.embed(query);
         semanticResults = await vectorStore.search(documentId, queryEmbedding, semanticCandidates);
       } catch (error) {
-        console.error('[HybridRAG] Semantic search failed:', error);
-        console.log('[HybridRAG] Using TF-IDF results only');
+        loggers.app('[HybridRAG] Semantic search failed:', error);
+        loggers.app('[HybridRAG] Using TF-IDF results only');
       }
     }
 
     // Step 3: Fusion
-    console.log(`[HybridRAG] Fusing results (method: ${fusionMethod})...`);
+    loggers.app(`[HybridRAG] Fusing results (method: ${fusionMethod})...`);
     const finalResults: HybridSearchResult[] = [];
 
     if (fusionMethod === 'rrf') {
@@ -310,8 +318,8 @@ export class HybridRAG {
       const fusedScores = reciprocalRankFusion(resultMap);
 
       // Create results
-      const chunkMap = new Map(index.chunks.map(c => [c.id, c]));
-      
+      const chunkMap = new Map(index.chunks.map((c) => [c.id, c]));
+
       for (const [chunkId, fusedScore] of fusedScores.entries()) {
         const chunk = chunkMap.get(chunkId);
         if (!chunk) continue;
@@ -333,10 +341,15 @@ export class HybridRAG {
       finalResults.sort((a, b) => b.fusedScore - a.fusedScore);
     } else {
       // Weighted fusion
-      const fusedScores = weightedFusion(tfidfResults, semanticResults, tfidfWeight, semanticWeight);
+      const fusedScores = weightedFusion(
+        tfidfResults,
+        semanticResults,
+        tfidfWeight,
+        semanticWeight,
+      );
 
       // Create results
-      const chunkMap = new Map(index.chunks.map(c => [c.id, c]));
+      const chunkMap = new Map(index.chunks.map((c) => [c.id, c]));
 
       for (const [chunkId, scores] of fusedScores.entries()) {
         const chunk = chunkMap.get(chunkId);
@@ -362,7 +375,7 @@ export class HybridRAG {
 
     const topResults = finalResults.slice(0, topK);
 
-    console.log(`[HybridRAG] Returning top ${topResults.length} results`);
+    loggers.app(`[HybridRAG] Returning top ${topResults.length} results`);
     return topResults;
   }
 
@@ -386,7 +399,7 @@ export class HybridRAG {
   async deleteIndex(documentId: string): Promise<void> {
     this.indexes.delete(documentId);
     await vectorStore.deleteDocument(documentId);
-    console.log('[HybridRAG] Deleted index for:', documentId);
+    loggers.app('[HybridRAG] Deleted index for:', documentId);
   }
 
   /**
@@ -395,7 +408,7 @@ export class HybridRAG {
   async clearAll(): Promise<void> {
     this.indexes.clear();
     await vectorStore.clearAll();
-    console.log('[HybridRAG] Cleared all indexes');
+    loggers.app('[HybridRAG] Cleared all indexes');
   }
 
   /**
@@ -421,4 +434,3 @@ export class HybridRAG {
 
 // Export singleton instance
 export const hybridRAG = HybridRAG.getInstance();
-

@@ -1,3 +1,4 @@
+import { loggers } from './logger';
 import axios from 'axios';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
@@ -24,7 +25,7 @@ export async function chatComplete(messages: ChatMessage[], config?: LlmConfig):
       });
       const content: string = data?.message?.content ?? '';
       return content.trim();
-    } catch (e: any) {
+    } catch (e: unknown) {
       const last = messages[messages.length - 1];
       return `Ollama request failed (${e?.message ?? 'unknown error'}). Question: "${last?.content ?? ''}".`;
     }
@@ -56,9 +57,7 @@ export function buildPrompt(question: string, contexts: string[]): ChatMessage[]
     content:
       'You are a helpful research assistant. Answer concisely based only on the provided context. If unsure, say you are unsure.',
   };
-  const contextBlock = contexts
-    .map((c, i) => `Context ${i + 1}:\n${c}`)
-    .join('\n\n');
+  const contextBlock = contexts.map((c, i) => `Context ${i + 1}:\n${c}`).join('\n\n');
   const user: ChatMessage = {
     role: 'user',
     content: `Context:\n${contextBlock}\n\nQuestion: ${question}`,
@@ -73,15 +72,13 @@ export function buildPrompt(question: string, contexts: string[]): ChatMessage[]
  */
 export async function listOllamaModels(config?: { baseUrl?: string }): Promise<string[]> {
   const baseUrl = (config?.baseUrl ?? 'http://127.0.0.1:11434').replace(/\/$/, '');
-  
+
   try {
     const { data } = await axios.get(`${baseUrl}/api/tags`);
     const models = data?.models ?? [];
-    return models.map((model: any) => model.name);
-  } catch (e: any) {
-    console.error('[LLM] Failed to list Ollama models:', e?.message ?? 'unknown error');
+    return models.map((model: unknown) => model.name);
+  } catch (e: unknown) {
+    loggers.app('[LLM] Failed to list Ollama models:', e?.message ?? 'unknown error');
     return [];
   }
 }
-
-

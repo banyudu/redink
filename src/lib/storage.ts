@@ -1,4 +1,12 @@
-import { BaseDirectory, exists, mkdir, writeFile, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import { loggers } from './logger';
+import {
+  BaseDirectory,
+  exists,
+  mkdir,
+  writeFile,
+  readTextFile,
+  writeTextFile,
+} from '@tauri-apps/plugin-fs';
 import { homeDir } from '@tauri-apps/api/path';
 
 // Common paths for PDF storage
@@ -37,28 +45,27 @@ export class StorageManager {
   private async findBestStorageLocation(): Promise<string> {
     try {
       const home = await homeDir();
-      
+
       // Try iBooks location first
       const iBooksPath = `${home}${IBOOKS_RELATIVE_PATH}`;
       if (await this.isDirectoryWritable(iBooksPath)) {
-        console.log('Using iBooks directory for PDF storage:', iBooksPath);
+        loggers.app('Using iBooks directory for PDF storage:', iBooksPath);
         return iBooksPath;
       }
-      
+
       // Fallback to app library
       const appLibraryPath = `${home}${APP_LIBRARY_RELATIVE_PATH}`;
       if (await this.isDirectoryWritable(appLibraryPath)) {
-        console.log('Using app library directory for PDF storage:', appLibraryPath);
+        loggers.app('Using app library directory for PDF storage:', appLibraryPath);
         return appLibraryPath;
       }
-      
+
       // Final fallback to cache directory
       const cachePath = `${home}/${CACHE_RELATIVE_PATH}`;
-      console.log('Using cache directory for PDF storage:', cachePath);
+      loggers.app('Using cache directory for PDF storage:', cachePath);
       return cachePath;
-      
     } catch (error) {
-      console.error('Error finding storage location:', error);
+      loggers.app('Error finding storage location:', error);
       // Ultimate fallback - use app data directory
       return 'redink/papers';
     }
@@ -72,7 +79,7 @@ export class StorageManager {
       }
       return true;
     } catch (error) {
-      console.warn(`Directory ${path} is not writable:`, error);
+      loggers.app(`Directory ${path} is not writable:`, error);
       return false;
     }
   }
@@ -83,7 +90,7 @@ export class StorageManager {
         await mkdir(path, { recursive: true });
       }
     } catch (error) {
-      console.error('Failed to create storage directory:', error);
+      loggers.app('Failed to create storage directory:', error);
       throw error;
     }
   }
@@ -96,7 +103,7 @@ export class StorageManager {
     try {
       // Sanitize arXiv ID to remove slashes (e.g., "physics/0110044" -> "physics_0110044")
       const sanitizedArxivId = arxivId.replace(/\//g, '_');
-      
+
       // Sanitize filename
       const sanitizedTitle = this.sanitizeFileName(title);
       const fileName = `${sanitizedArxivId}_${sanitizedTitle}.pdf`;
@@ -106,27 +113,27 @@ export class StorageManager {
       const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
       if (!(await exists(dirPath))) {
         await mkdir(dirPath, { recursive: true });
-        console.log('Created directory:', dirPath);
+        loggers.app('Created directory:', dirPath);
       }
 
       // Download the PDF
-      console.log('Downloading arXiv paper:', downloadUrl);
+      loggers.app('Downloading arXiv paper:', downloadUrl);
       const response = await fetch(downloadUrl);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const arrayBuffer = await response.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
-      
+
       // Save to file
       await writeFile(filePath, uint8Array);
-      console.log('Successfully downloaded paper to:', filePath);
-      
+      loggers.app('Successfully downloaded paper to:', filePath);
+
       return filePath;
     } catch (error) {
-      console.error('Error downloading arXiv paper:', error);
+      loggers.app('Error downloading arXiv paper:', error);
       throw error;
     }
   }
@@ -150,15 +157,10 @@ export class StorageManager {
       return [];
     }
 
-    try {
-      // This would require additional Tauri APIs to list directory contents
-      // For now, we'll return an empty array as a placeholder
-      // TODO: Implement directory listing when needed
-      return [];
-    } catch (error) {
-      console.error('Error listing downloaded papers:', error);
-      return [];
-    }
+    // This would require additional Tauri APIs to list directory contents
+    // For now, we'll return an empty array as a placeholder
+    // TODO: Implement directory listing when needed
+    return [];
   }
 
   // Preferences management
@@ -169,23 +171,23 @@ export class StorageManager {
       if (dirPath && !(await exists(dirPath, { baseDir: BaseDirectory.AppData }))) {
         await mkdir(dirPath, { baseDir: BaseDirectory.AppData, recursive: true });
       }
-      
+
       if (await exists(PREFERENCES_FILE, { baseDir: BaseDirectory.AppData })) {
         const content = await readTextFile(PREFERENCES_FILE, { baseDir: BaseDirectory.AppData });
         this.preferences = JSON.parse(content);
-        console.log('[Storage] Loaded user preferences:', this.preferences);
+        loggers.app('[Storage] Loaded user preferences:', this.preferences);
       } else {
         // Initialize with defaults
-        console.log('[Storage] No preferences file found, creating with defaults');
+        loggers.app('[Storage] No preferences file found, creating with defaults');
         this.preferences = {
           arxivCategories: DEFAULT_ARXIV_CATEGORIES,
           lastUpdated: Date.now(),
         };
         await this.savePreferences();
-        console.log('[Storage] Created default preferences:', this.preferences);
+        loggers.app('[Storage] Created default preferences:', this.preferences);
       }
     } catch (error) {
-      console.error('[Storage] Failed to load preferences:', error);
+      loggers.app('[Storage] Failed to load preferences:', error);
       this.preferences = {
         arxivCategories: DEFAULT_ARXIV_CATEGORIES,
         lastUpdated: Date.now(),
@@ -195,27 +197,29 @@ export class StorageManager {
 
   private async savePreferences(): Promise<void> {
     if (!this.preferences) return;
-    
+
     try {
       // Ensure the directory exists
       const dirPath = PREFERENCES_FILE.split('/').slice(0, -1).join('/');
       if (dirPath && !(await exists(dirPath, { baseDir: BaseDirectory.AppData }))) {
         await mkdir(dirPath, { baseDir: BaseDirectory.AppData, recursive: true });
       }
-      
+
       const content = JSON.stringify(this.preferences, null, 2);
       await writeTextFile(PREFERENCES_FILE, content, { baseDir: BaseDirectory.AppData });
-      console.log('[Storage] Saved user preferences');
+      loggers.app('[Storage] Saved user preferences');
     } catch (error) {
-      console.error('[Storage] Failed to save preferences:', error);
+      loggers.app('[Storage] Failed to save preferences:', error);
     }
   }
 
   getPreferences(): UserPreferences {
-    return this.preferences || {
-      arxivCategories: DEFAULT_ARXIV_CATEGORIES,
-      lastUpdated: Date.now(),
-    };
+    return (
+      this.preferences || {
+        arxivCategories: DEFAULT_ARXIV_CATEGORIES,
+        lastUpdated: Date.now(),
+      }
+    );
   }
 
   async updateArxivCategories(categories: string[]): Promise<void> {

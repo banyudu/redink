@@ -89,7 +89,7 @@ export const Home: React.FC = () => {
           loggers.app(' Using default categories:', defaultCategories);
         }
       } catch (error) {
-        console.error('Failed to initialize:', error);
+        loggers.app('Failed to initialize:', error);
         // Set default categories on error
         setSelectedCategories(['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV']);
       }
@@ -98,87 +98,97 @@ export const Home: React.FC = () => {
   }, [setRecentFiles]);
 
   // Function to load ArXiv papers
-  const loadPapers = useCallback(async (forceRefresh = false) => {
-    if (selectedCategories.length === 0) return; // Wait for categories to load
+  const loadPapers = useCallback(
+    async (forceRefresh = false) => {
+      if (selectedCategories.length === 0) return; // Wait for categories to load
 
-    setPapersError(null);
-    let hasCachedData = false;
+      setPapersError(null);
+      let hasCachedData = false;
 
-    if (forceRefresh) {
-      setIsRefreshing(true);
-      setLoadingPapers(true);
-    }
+      if (forceRefresh) {
+        setIsRefreshing(true);
+        setLoadingPapers(true);
+      }
 
-    try {
-      if (!forceRefresh) {
-        // First, try to load cached data immediately (don't show loading if we have cached data)
-        const sortedCategories = [...selectedCategories].sort();
-        const cacheKey = `categories_${sortedCategories.join('_')}_20`;
-        const cached = await arxivCache.get(cacheKey);
+      try {
+        if (!forceRefresh) {
+          // First, try to load cached data immediately (don't show loading if we have cached data)
+          const sortedCategories = [...selectedCategories].sort();
+          const cacheKey = `categories_${sortedCategories.join('_')}_20`;
+          const cached = await arxivCache.get(cacheKey);
 
-        if (cached && cached.length > 0) {
-          // Show cached data immediately
-          setArxivPapers(cached);
-          setFilteredPapers(cached);
-          hasCachedData = true;
-          loggers.app(' Showing cached papers while fetching fresh data:', cached.length);
-        } else {
-          // No cached data, show loading indicator
-          setLoadingPapers(true);
-          loggers.app(' No cached data, fetching from ArXiv...');
+          if (cached && cached.length > 0) {
+            // Show cached data immediately
+            setArxivPapers(cached);
+            setFilteredPapers(cached);
+            hasCachedData = true;
+            loggers.app(' Showing cached papers while fetching fresh data:', cached.length);
+          } else {
+            // No cached data, show loading indicator
+            setLoadingPapers(true);
+            loggers.app(' No cached data, fetching from ArXiv...');
+          }
+        }
+
+        // Fetch fresh data (this will use cache if available and valid, unless forceRefresh is true)
+        const papers = await getPapersByCategoriesCached(selectedCategories, 20);
+        setArxivPapers(papers);
+        setFilteredPapers(papers);
+        loggers.app(
+          ' Updated with papers for categories:',
+          selectedCategories,
+          'count:',
+          papers.length,
+        );
+      } catch (error: unknown) {
+        loggers.app(' Failed to load papers:', error);
+        const errorMessage = error.message || 'Unknown error occurred';
+        loggers.app(' Detailed error info:', {
+          originalError: error,
+          message: errorMessage,
+          stack: error.stack,
+          selectedCategories,
+          forceRefresh,
+        });
+        setPapersError(
+          `Failed to load ArXiv papers: ${errorMessage}. Please check your internet connection and try again.`,
+        );
+
+        // Show error toast notification
+        addToast({
+          title: 'Failed to load papers',
+          message: `Error: ${errorMessage}. Please check your internet connection and try again.`,
+          type: 'error',
+          duration: 8000,
+          actions: [
+            {
+              label: 'Retry',
+              onClick: async () => {
+                try {
+                  arxivCache.clear();
+                } catch (error) {
+                  loggers.app('Failed to clear cache:', error);
+                }
+                await loadPapers(true);
+              },
+            },
+          ],
+        });
+
+        // Only clear data if we don't have cached data
+        if (!hasCachedData) {
+          setArxivPapers([]);
+          setFilteredPapers([]);
+        }
+      } finally {
+        setLoadingPapers(false);
+        if (forceRefresh) {
+          setIsRefreshing(false);
         }
       }
-
-      // Fetch fresh data (this will use cache if available and valid, unless forceRefresh is true)
-      const papers = await getPapersByCategoriesCached(selectedCategories, 20);
-      setArxivPapers(papers);
-      setFilteredPapers(papers);
-      loggers.app(' Updated with papers for categories:', selectedCategories, 'count:', papers.length);
-    } catch (error: unknown) {
-      loggers.app(' Failed to load papers:', error);
-      const errorMessage = error.message || 'Unknown error occurred';
-      loggers.app(' Detailed error info:', {
-        originalError: error,
-        message: errorMessage,
-        stack: error.stack,
-        selectedCategories,
-        forceRefresh,
-      });
-      setPapersError(`Failed to load ArXiv papers: ${errorMessage}. Please check your internet connection and try again.`);
-
-      // Show error toast notification
-      addToast({
-        title: 'Failed to load papers',
-        message: `Error: ${errorMessage}. Please check your internet connection and try again.`,
-        type: 'error',
-        duration: 8000,
-        actions: [
-          {
-            label: 'Retry',
-            onClick: async () => {
-              try {
-                arxivCache.clear();
-              } catch (error) {
-                loggers.app('Failed to clear cache:', error);
-              }
-              await loadPapers(true);
-            },
-          },
-        ],
-      });
-
-      // Only clear data if we don't have cached data
-      if (!hasCachedData) {
-        setArxivPapers([]);
-        setFilteredPapers([]);
-      }
-    } finally {
-      setLoadingPapers(false);
-      if (forceRefresh) {
-        setIsRefreshing(false);
-      }
-    }
-  }, [selectedCategories, addToast]);
+    },
+    [selectedCategories, addToast],
+  );
 
   // Handle refresh button click
   const handleRefreshPapers = useCallback(async () => {
@@ -253,36 +263,39 @@ export const Home: React.FC = () => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [arxivQuery, arxivPapers]);
+  }, [arxivQuery, arxivPapers, addToast]);
 
   // Process PDF file and navigate to chat
-  const processPdfFile = useCallback(async (filePath: string) => {
-    whisper('filePath is: ', filePath);
+  const processPdfFile = useCallback(
+    async (filePath: string) => {
+      whisper('filePath is: ', filePath);
 
-    try {
-      await openPdfByPath(filePath, {
-        addRecentFile,
-        setCurrentPaper,
-        setLastSelectedPdfPath,
-        navigate,
-        onStart: () => {
-          setLoading(true);
-          setLoadingFile(filePath);
-        },
-        onComplete: () => {
-          setLoading(false);
-          setLoadingFile(null);
-        },
-        onError: (err) => {
-          setLoading(false);
-          setLoadingFile(null);
-          alert(`Failed to load PDF: ${err.message ?? String(err)}`);
-        },
-      });
-    } catch (err) {
-      // Error already handled in onError callback
-    }
-  }, [navigate, setCurrentPaper, setLastSelectedPdfPath, addRecentFile]);
+      try {
+        await openPdfByPath(filePath, {
+          addRecentFile,
+          setCurrentPaper,
+          setLastSelectedPdfPath,
+          navigate,
+          onStart: () => {
+            setLoading(true);
+            setLoadingFile(filePath);
+          },
+          onComplete: () => {
+            setLoading(false);
+            setLoadingFile(null);
+          },
+          onError: (err) => {
+            setLoading(false);
+            setLoadingFile(null);
+            showError(`Failed to load PDF: ${err.message ?? String(err)}`);
+          },
+        });
+      } catch {
+        // Error already handled in onError callback
+      }
+    },
+    [navigate, setCurrentPaper, setLastSelectedPdfPath, addRecentFile],
+  );
 
   // Handle file selection via Tauri dialog
   const handleFileSelect = useCallback(async () => {
@@ -311,7 +324,7 @@ export const Home: React.FC = () => {
       }
     } catch (err: unknown) {
       loggers.app(' File selection error:', err);
-      alert(`Failed to select file: ${err?.message ?? String(err)}`);
+      showError(`Failed to select file: ${(err as Error)?.message ?? String(err)}`);
     }
   }, [processPdfFile]);
 
@@ -326,38 +339,47 @@ export const Home: React.FC = () => {
     }
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(false);
 
-    loggers.app(' File dropped');
-    // Note: In Tauri, drag & drop may not work the same as web
-    // For now, open file dialog as fallback
-    handleFileSelect();
-  }, [handleFileSelect]);
+      loggers.app(' File dropped');
+      // Note: In Tauri, drag & drop may not work the same as web
+      // For now, open file dialog as fallback
+      handleFileSelect();
+    },
+    [handleFileSelect],
+  );
 
   // Recent file selection
-  const handleRecentFileSelect = useCallback(async (file: RecentFile) => {
-    await processPdfFile(file.path);
-    await cacheManager.updateLastAccessed(file.path);
-  }, [processPdfFile]);
+  const handleRecentFileSelect = useCallback(
+    async (file: RecentFile) => {
+      await processPdfFile(file.path);
+      await cacheManager.updateLastAccessed(file.path);
+    },
+    [processPdfFile],
+  );
 
   // Remove recent file
-  const handleRemoveRecentFile = useCallback(async (file: RecentFile, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent file selection when clicking delete
+  const handleRemoveRecentFile = useCallback(
+    async (file: RecentFile, e: React.MouseEvent) => {
+      e.stopPropagation(); // Prevent file selection when clicking delete
 
-    try {
-      await cacheManager.removeRecentFile(file.path);
-      // Update the UI by removing from the list
-      const updatedFiles = recentFiles.filter(f => f.id !== file.id);
-      setRecentFiles(updatedFiles);
-      loggers.app(' Removed recent file:', file.path);
-    } catch (error) {
-      loggers.app(' Failed to remove recent file:', error);
-      showError('Failed to remove file from recent list');
-    }
-  }, [recentFiles, setRecentFiles]);
+      try {
+        await cacheManager.removeRecentFile(file.path);
+        // Update the UI by removing from the list
+        const updatedFiles = recentFiles.filter((f) => f.id !== file.id);
+        setRecentFiles(updatedFiles);
+        loggers.app(' Removed recent file:', file.path);
+      } catch (error) {
+        loggers.app(' Failed to remove recent file:', error);
+        showError('Failed to remove file from recent list');
+      }
+    },
+    [recentFiles, setRecentFiles],
+  );
 
   // Helper function to get paper file path
   const getPaperFilePath = useCallback((paper: ArxivPaper): string => {
@@ -376,57 +398,66 @@ export const Home: React.FC = () => {
   }, []);
 
   // Check if papers are already downloaded
-  const checkDownloadedPapers = useCallback(async (papers: ArxivPaper[]) => {
-    const { exists } = await import('@tauri-apps/plugin-fs');
-    const downloaded = new Set<string>();
+  const checkDownloadedPapers = useCallback(
+    async (papers: ArxivPaper[]) => {
+      const { exists } = await import('@tauri-apps/plugin-fs');
+      const downloaded = new Set<string>();
 
-    for (const paper of papers) {
-      const filePath = getPaperFilePath(paper);
-      if (filePath) {
-        try {
-          if (await exists(filePath)) {
-            downloaded.add(paper.id);
+      for (const paper of papers) {
+        const filePath = getPaperFilePath(paper);
+        if (filePath) {
+          try {
+            if (await exists(filePath)) {
+              downloaded.add(paper.id);
+            }
+          } catch {
+            // File doesn't exist or error checking
           }
-        } catch (error) {
-          // File doesn't exist or error checking
         }
       }
-    }
 
-    setDownloadedPapers(downloaded);
-  }, [getPaperFilePath]);
+      setDownloadedPapers(downloaded);
+    },
+    [getPaperFilePath],
+  );
 
   // ArXiv paper download handler
-  const handleArxivDownload = useCallback(async (paper: ArxivPaper) => {
-    try {
-      await openArxivPaperFromObject(paper, {
-        addRecentFile,
-        setCurrentPaper,
-        setLastSelectedPdfPath,
-        navigate,
-        onStart: () => setDownloadingPaper(paper.id),
-        onComplete: () => {
-          setDownloadingPaper(null);
-          // Mark as downloaded
-          setDownloadedPapers(prev => new Set(prev).add(paper.id));
-        },
-        onError: (error) => {
-          setDownloadingPaper(null);
-          alert(`Failed to download paper: ${error.message ?? 'Unknown error'}`);
-        },
-      });
-    } catch (error) {
-      // Error already handled in onError callback
-    }
-  }, [navigate, setCurrentPaper, setLastSelectedPdfPath, addRecentFile]);
+  const handleArxivDownload = useCallback(
+    async (paper: ArxivPaper) => {
+      try {
+        await openArxivPaperFromObject(paper, {
+          addRecentFile,
+          setCurrentPaper,
+          setLastSelectedPdfPath,
+          navigate,
+          onStart: () => setDownloadingPaper(paper.id),
+          onComplete: () => {
+            setDownloadingPaper(null);
+            // Mark as downloaded
+            setDownloadedPapers((prev) => new Set(prev).add(paper.id));
+          },
+          onError: (error) => {
+            setDownloadingPaper(null);
+            showError(`Failed to download paper: ${error.message ?? 'Unknown error'}`);
+          },
+        });
+      } catch {
+        // Error already handled in onError callback
+      }
+    },
+    [navigate, setCurrentPaper, setLastSelectedPdfPath, addRecentFile],
+  );
 
   // Handle continuing chat with an already-downloaded paper
-  const handleContinueChat = useCallback(async (paper: ArxivPaper) => {
-    const filePath = getPaperFilePath(paper);
-    if (filePath) {
-      await processPdfFile(filePath);
-    }
-  }, [getPaperFilePath, processPdfFile]);
+  const handleContinueChat = useCallback(
+    async (paper: ArxivPaper) => {
+      const filePath = getPaperFilePath(paper);
+      if (filePath) {
+        await processPdfFile(filePath);
+      }
+    },
+    [getPaperFilePath, processPdfFile],
+  );
 
   // Check which papers are already downloaded whenever papers change
   React.useEffect(() => {
@@ -456,9 +487,9 @@ export const Home: React.FC = () => {
 
   // Category selection handlers
   const toggleCategory = useCallback((category: string) => {
-    setSelectedCategories(prev => {
+    setSelectedCategories((prev) => {
       const newCategories = prev.includes(category)
-        ? prev.filter(c => c !== category)
+        ? prev.filter((c) => c !== category)
         : [...prev, category];
 
       // Save to preferences
@@ -475,23 +506,32 @@ export const Home: React.FC = () => {
   }, []);
 
   const handleShowMoreRecentFiles = useCallback(() => {
-    setVisibleRecentFilesCount(prevCount => Math.min(prevCount * 2, recentFiles.length));
+    setVisibleRecentFilesCount((prevCount) => Math.min(prevCount * 2, recentFiles.length));
   }, [recentFiles.length]);
 
   return (
-    <div className="space-y-6 animate-fade-in px-6 py-4 max-w-[1920px] mx-auto">
+    <div className="animate-fade-in mx-auto max-w-[1920px] space-y-6 px-6 py-4">
       {/* File Upload Section - Always visible */}
-      <div className="glass rounded-lg p-6 border border-white/20 backdrop-blur-xl">
+      <div className="glass rounded-lg border border-white/20 p-6 backdrop-blur-xl">
         <div
-          className={`w-full border-2 border-dashed rounded-lg p-6 text-center transition-all duration-300 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 mb-6 ${dragActive
-            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-            : 'border-gray-300 dark:border-gray-600'
-            } ${loading ? 'pointer-events-none opacity-50' : ''}`}
+          className={`mb-6 w-full cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-all duration-300 hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 ${
+            dragActive
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+              : 'border-gray-300 dark:border-gray-600'
+          } ${loading ? 'pointer-events-none opacity-50' : ''}`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+          role="button"
+          tabIndex={0}
         >
           <input
             ref={fileInputRef}
@@ -506,24 +546,24 @@ export const Home: React.FC = () => {
 
           {loading ? (
             <div className="flex items-center justify-center gap-3">
-              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">Processing PDF...</p>
               </div>
             </div>
           ) : (
-            <div className="text-center space-y-4 py-8">
-              <div className="flex justify-center mb-4">
+            <div className="space-y-4 py-8 text-center">
+              <div className="mb-4 flex justify-center">
                 <div className="relative">
-                  <img src="/logo.png" alt="Logo" className="w-12 h-12" />
-                  <div className="absolute inset-0 w-12 h-12 bg-blue-600/20 rounded-full blur-xl" />
+                  <img src="/logo.png" alt="Logo" className="h-12 w-12" />
+                  <div className="absolute inset-0 h-12 w-12 rounded-full bg-blue-600/20 blur-xl" />
                 </div>
               </div>
 
-              <h1 className="text-4xl font-bold text-gradient bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <h1 className="text-gradient bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-4xl font-bold text-transparent">
                 Select a Document
               </h1>
-              <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+              <p className="mx-auto max-w-2xl text-lg text-gray-600 dark:text-gray-300">
                 Choose a PDF file to start chatting with your research papers using AI
               </p>
             </div>
@@ -533,10 +573,10 @@ export const Home: React.FC = () => {
         {/* Recent Files Section - Only shown when there are recent files */}
         {recentFiles.length > 0 && (
           <>
-            <div className="flex items-center gap-3 mb-4">
-              <Clock className="w-5 h-5 text-emerald-600" />
+            <div className="mb-4 flex items-center gap-3">
+              <Clock className="h-5 w-5 text-emerald-600" />
               <h2 className="text-lg font-medium text-gray-900 dark:text-white">Recent Files</h2>
-              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+              <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">
                 {recentFiles.length}
               </span>
             </div>
@@ -545,22 +585,31 @@ export const Home: React.FC = () => {
               {recentFiles.slice(0, visibleRecentFilesCount).map((file) => (
                 <div
                   key={file.id}
-                  className={`flex items-center gap-4 px-2 py-2 rounded-lg cursor-pointer transition-all duration-200 border-zinc-100 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 group ${loadingFile === file.path ? 'opacity-50 pointer-events-none' : ''
-                    }`}
+                  className={`group flex cursor-pointer items-center gap-4 rounded-lg border-zinc-100 px-2 py-2 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 ${
+                    loadingFile === file.path ? 'pointer-events-none opacity-50' : ''
+                  }`}
                   onClick={() => handleRecentFileSelect(file)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleRecentFileSelect(file);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                 >
                   {/* File Icon */}
-                  <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0">
-                    <img src="/arxiv.png" alt="ArXiv" className="w-4 h-4" />
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded">
+                    <img src="/arxiv.png" alt="ArXiv" className="h-4 w-4" />
                   </div>
 
                   {/* File Info - main content */}
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-gray-900 dark:text-white text-sm truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
+                      <h4 className="truncate text-sm font-semibold text-gray-900 group-hover:text-emerald-600 dark:text-white dark:group-hover:text-emerald-400">
                         {file.title || file.path.split('/').pop() || 'Untitled'}
                       </h4>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0">
+                      <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-500">
                         {file.pageCount && <span>{file.pageCount} pages</span>}
                         {file.fileSize && <span>• {formatFileSize(file.fileSize)}</span>}
                         <span>• {formatDate(file.lastAccessed)}</span>
@@ -569,18 +618,18 @@ export const Home: React.FC = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex flex-shrink-0 items-center gap-2">
                     {loadingFile === file.path && (
-                      <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
                     )}
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
                             onClick={(e) => handleRemoveRecentFile(file, e)}
-                            className="p-1 rounded-md bg-white/20 dark:bg-gray-800/20 backdrop-blur-sm border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-50 dark:hover:bg-red-900/30 hover:border-red-200 dark:hover:border-red-800"
+                            className="rounded-md border border-white/20 bg-white/20 p-1 opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100 hover:border-red-200 hover:bg-red-50 dark:bg-gray-800/20 dark:hover:border-red-800 dark:hover:bg-red-900/30"
                           >
-                            <Trash2 className="w-3 h-3 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400" />
+                            <Trash2 className="h-3 w-3 text-gray-600 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -595,14 +644,14 @@ export const Home: React.FC = () => {
 
             {/* Show More Button */}
             {visibleRecentFilesCount < recentFiles.length && (
-              <div className="flex justify-center mt-4">
+              <div className="mt-4 flex justify-center">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleShowMoreRecentFiles}
                   className="glass border-white/20 bg-white/10 backdrop-blur-xl"
                 >
-                  <ChevronDown className="w-4 h-4 mr-2" />
+                  <ChevronDown className="mr-2 h-4 w-4" />
                   Show More ({recentFiles.length - visibleRecentFilesCount} remaining)
                 </Button>
               </div>
@@ -612,17 +661,17 @@ export const Home: React.FC = () => {
       </div>
 
       {/* ArXiv Browser Section - Always visible */}
-      <div className="glass rounded-lg p-6 border border-white/20 backdrop-blur-xl">
-        <div className="flex items-center justify-between mb-6">
+      <div className="glass rounded-lg border border-white/20 p-6 backdrop-blur-xl">
+        <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-pink-600 rounded-lg flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-pink-600">
+              <BookOpen className="h-5 w-5 text-white" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               {recentFiles.length === 0 ? 'Or browse ArXiv Papers' : 'Latest ArXiv Papers'}
             </h2>
             {(loadingPapers || isRefreshing) && (
-              <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -636,7 +685,7 @@ export const Home: React.FC = () => {
                     disabled={loadingPapers || isRefreshing}
                     className="glass border-white/20 bg-white/10 backdrop-blur-xl"
                   >
-                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -653,7 +702,7 @@ export const Home: React.FC = () => {
                     onClick={() => setShowCategorySelector(!showCategorySelector)}
                     className="glass border-white/20 bg-white/10 backdrop-blur-xl"
                   >
-                    <Settings2 className="w-4 h-4 mr-2" />
+                    <Settings2 className="mr-2 h-4 w-4" />
                     Categories ({selectedCategories.length})
                   </Button>
                 </TooltipTrigger>
@@ -667,8 +716,8 @@ export const Home: React.FC = () => {
 
         {/* Category Selector */}
         {showCategorySelector && (
-          <div className="mb-6 p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-white/20">
-            <div className="flex items-center justify-between mb-3">
+          <div className="mb-6 rounded-lg border border-white/20 bg-white/50 p-4 dark:bg-gray-800/50">
+            <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Select categories to see the latest papers:
               </p>
@@ -687,23 +736,24 @@ export const Home: React.FC = () => {
                   onClick={() => setShowCategorySelector(false)}
                   className="text-xs"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {Object.entries(ARXIV_CATEGORIES).map(([code, name]) => (
                 <button
                   key={code}
                   onClick={() => toggleCategory(code)}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center justify-between ${selectedCategories.includes(code)
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-gray-600'
-                    }`}
+                  className={`flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                    selectedCategories.includes(code)
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-white text-gray-700 hover:bg-orange-100 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                  }`}
                 >
                   <span className="truncate">{name}</span>
                   {selectedCategories.includes(code) && (
-                    <Check className="w-4 h-4 ml-1 flex-shrink-0" />
+                    <Check className="ml-1 h-4 w-4 flex-shrink-0" />
                   )}
                 </button>
               ))}
@@ -713,49 +763,51 @@ export const Home: React.FC = () => {
 
         {/* Search */}
         <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
           <Input
             placeholder="Search papers by title, author, or category..."
             value={arxivQuery}
             onChange={(e) => setArxivQuery(e.target.value)}
-            className="pl-10 glass border-white/20 bg-white/10 backdrop-blur-xl"
+            className="glass border-white/20 bg-white/10 pl-10 backdrop-blur-xl"
             disabled={loadingPapers}
           />
         </div>
 
         {/* Error Message */}
         {papersError && (
-          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <div className="flex items-center gap-3 mb-3">
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-              <p className="text-sm text-red-800 dark:text-red-200 flex-grow">{papersError}</p>
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+            <div className="mb-3 flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+              <p className="flex-grow text-sm text-red-800 dark:text-red-200">{papersError}</p>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={handleRefreshPapers}
               disabled={loadingPapers || isRefreshing}
-              className="bg-white dark:bg-gray-800 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+              className="border-red-300 bg-white text-red-700 hover:bg-red-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-900/30"
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               {isRefreshing ? 'Refreshing...' : 'Try Again'}
             </Button>
           </div>
         )}
 
         {/* Papers Grid */}
-        <div className={`grid gap-4 min-h-[300px] ${recentFiles.length === 0 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
+        <div
+          className={`grid min-h-[300px] gap-4 ${recentFiles.length === 0 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}
+        >
           {loadingPapers && filteredPapers.length === 0 ? (
             <div className="col-span-full flex items-center justify-center py-12">
               <div className="text-center">
-                <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
+                <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-orange-500" />
                 <p className="text-gray-600 dark:text-gray-300">Loading papers from ArXiv...</p>
               </div>
             </div>
           ) : filteredPapers.length === 0 ? (
             <div className="col-span-full flex items-center justify-center py-12">
               <div className="text-center">
-                <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <Search className="mx-auto mb-4 h-12 w-12 text-gray-400" />
                 <p className="text-gray-600 dark:text-gray-300">
                   {arxivQuery ? 'No papers found. Try a different search.' : 'No papers available.'}
                 </p>
@@ -765,47 +817,50 @@ export const Home: React.FC = () => {
             filteredPapers.map((paper) => (
               <div
                 key={paper.id}
-                className={`p-4 border border-white/20 rounded-lg hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all duration-200 group flex flex-col ${downloadingPaper === paper.id ? 'opacity-75' : ''
-                  }`}
+                className={`group flex flex-col rounded-lg border border-white/20 p-4 transition-all duration-200 hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 ${
+                  downloadingPaper === paper.id ? 'opacity-75' : ''
+                }`}
               >
-                <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2 mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400">
+                <h4 className="mb-2 line-clamp-2 text-sm font-medium text-gray-900 group-hover:text-orange-600 dark:text-white dark:group-hover:text-orange-400">
                   {paper.title}
                 </h4>
-                <p className="text-xs text-gray-600 dark:text-gray-300 mb-2 line-clamp-1">
+                <p className="mb-2 line-clamp-1 text-xs text-gray-600 dark:text-gray-300">
                   <strong>Authors:</strong> {paper.authors}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-3 flex-grow">
+                <p className="mb-3 line-clamp-3 flex-grow text-xs text-gray-500 dark:text-gray-400">
                   {paper.abstract}
                 </p>
-                <div className="flex items-center justify-between mt-auto">
+                <div className="mt-auto flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-xs text-gray-500">
                       {new Date(paper.publishedDate).toLocaleDateString()}
                     </span>
-                    <span className="text-xs text-orange-600 font-medium">
-                      {paper.category}
-                    </span>
+                    <span className="text-xs font-medium text-orange-600">{paper.category}</span>
                   </div>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => downloadedPapers.has(paper.id) ? handleContinueChat(paper) : handleArxivDownload(paper)}
+                    onClick={() =>
+                      downloadedPapers.has(paper.id)
+                        ? handleContinueChat(paper)
+                        : handleArxivDownload(paper)
+                    }
                     disabled={downloadingPaper === paper.id || loading}
-                    className="text-xs h-7 px-3 glass border-white/20 bg-white/10 backdrop-blur-xl hover:bg-orange-50 dark:hover:bg-orange-900/30 disabled:opacity-50"
+                    className="glass h-7 border-white/20 bg-white/10 px-3 text-xs backdrop-blur-xl hover:bg-orange-50 disabled:opacity-50 dark:hover:bg-orange-900/30"
                   >
                     {downloadingPaper === paper.id ? (
                       <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                         Downloading...
                       </>
                     ) : downloadedPapers.has(paper.id) ? (
                       <>
-                        <MessageSquare className="w-3 h-3 mr-1" />
+                        <MessageSquare className="mr-1 h-3 w-3" />
                         Continue Chat
                       </>
                     ) : (
                       <>
-                        <Download className="w-3 h-3 mr-1" />
+                        <Download className="mr-1 h-3 w-3" />
                         Download
                       </>
                     )}
@@ -816,9 +871,12 @@ export const Home: React.FC = () => {
           )}
         </div>
 
-        <div className="mt-6 pt-4 border-t border-white/20">
-          <p className="text-xs text-gray-500 text-center">
-            💡 Papers will be saved to your {storageManager.getStoragePath()?.includes('iBooks') ? 'iBooks library' : 'Documents folder'}
+        <div className="mt-6 border-t border-white/20 pt-4">
+          <p className="text-center text-xs text-gray-500">
+            💡 Papers will be saved to your{' '}
+            {storageManager.getStoragePath()?.includes('iBooks')
+              ? 'iBooks library'
+              : 'Documents folder'}
           </p>
         </div>
       </div>

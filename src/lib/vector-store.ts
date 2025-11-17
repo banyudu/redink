@@ -1,4 +1,4 @@
-/**
+import { loggers } from './logger'; /**
  * Vector Store Manager using LanceDB (Rust backend)
  * Provides offline vector storage in .cache/redink/vectors
  */
@@ -53,31 +53,31 @@ export class VectorStore {
       // Set up storage path
       const home = await homeDir();
       this.storagePath = `${home}/.cache/redink/vectors`;
-      
+
       // Ensure directory exists
-      console.log('[VectorStore] Ensuring storage directory exists:', this.storagePath);
+      loggers.app('[VectorStore] Ensuring storage directory exists:', this.storagePath);
       try {
         if (!(await exists(this.storagePath))) {
           await mkdir(this.storagePath, { recursive: true });
-          console.log('[VectorStore] Created storage directory');
+          loggers.app('[VectorStore] Created storage directory');
         } else {
-          console.log('[VectorStore] Storage directory already exists');
+          loggers.app('[VectorStore] Storage directory already exists');
         }
       } catch (mkdirError) {
-        console.error('[VectorStore] Failed to create directory:', mkdirError);
+        loggers.app('[VectorStore] Failed to create directory:', mkdirError);
       }
 
-      console.log('[VectorStore] Storage path:', this.storagePath);
+      loggers.app('[VectorStore] Storage path:', this.storagePath);
 
       // Initialize Rust backend
       const result = await invoke<string>('vector_store_initialize', {
         storagePath: this.storagePath,
       });
 
-      console.log('[VectorStore]', result);
+      loggers.app('[VectorStore]', result);
       this.initialized = true;
     } catch (error) {
-      console.error('[VectorStore] Failed to initialize:', error);
+      loggers.app('[VectorStore] Failed to initialize:', error);
       throw error;
     }
   }
@@ -85,11 +85,7 @@ export class VectorStore {
   /**
    * Add chunks with embeddings to a table
    */
-  async addChunks(
-    documentId: string,
-    chunks: TextChunk[],
-    embeddings: number[][],
-  ): Promise<void> {
+  async addChunks(documentId: string, chunks: TextChunk[], embeddings: number[][]): Promise<void> {
     if (chunks.length !== embeddings.length) {
       throw new Error('Chunks and embeddings length mismatch');
     }
@@ -114,9 +110,9 @@ export class VectorStore {
         storagePath: this.storagePath,
       });
 
-      console.log(`[VectorStore] ${result}`);
+      loggers.app(`[VectorStore] ${result}`);
     } catch (error) {
-      console.error('[VectorStore] Failed to add chunks:', error);
+      loggers.app('[VectorStore] Failed to add chunks:', error);
       throw error;
     }
   }
@@ -151,10 +147,10 @@ export class VectorStore {
         distance: result.distance,
       }));
 
-      console.log(`[VectorStore] Found ${searchResults.length} results for query`);
+      loggers.app(`[VectorStore] Found ${searchResults.length} results for query`);
       return searchResults;
     } catch (error) {
-      console.error('[VectorStore] Search failed:', error);
+      loggers.app('[VectorStore] Search failed:', error);
       throw error;
     }
   }
@@ -190,9 +186,9 @@ export class VectorStore {
         documentId,
         storagePath: this.storagePath,
       });
-      console.log('[VectorStore]', result);
+      loggers.app('[VectorStore]', result);
     } catch (error) {
-      console.error('[VectorStore] Failed to delete document:', error);
+      loggers.app('[VectorStore] Failed to delete document:', error);
     }
   }
 
@@ -226,9 +222,9 @@ export class VectorStore {
       const result = await invoke<string>('vector_store_clear_all', {
         storagePath: this.storagePath,
       });
-      console.log('[VectorStore]', result);
+      loggers.app('[VectorStore]', result);
     } catch (error) {
-      console.error('[VectorStore] Failed to clear all:', error);
+      loggers.app('[VectorStore] Failed to clear all:', error);
     }
   }
 

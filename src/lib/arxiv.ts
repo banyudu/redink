@@ -1,6 +1,6 @@
-/**
+import { loggers } from './logger'; /**
  * ArXiv API Integration with Rust Backend and Persistent Caching
- * 
+ *
  * Uses Rust backend to fetch from ArXiv API v1 (https://export.arxiv.org/api/query)
  * This avoids CORS issues and provides better error handling
  */
@@ -14,7 +14,7 @@ export interface ArxivPaper {
   authors: string;
   category: string;
   publishedDate: string; // Note: Rust uses published_date, we map it here
-  abstract: string; // Note: Rust uses abstract_text, we map it here  
+  abstract: string; // Note: Rust uses abstract_text, we map it here
   downloadUrl: string; // Note: Rust uses download_url, we map it here
   pdfUrl: string; // Note: Rust uses pdf_url, we map it here
   categories: string[];
@@ -102,13 +102,13 @@ export async function searchArxivPapers(
 
   // Handle empty query - fetch featured papers instead
   if (!query || query.trim() === '') {
-    console.log('[ArXiv API] Empty query detected, fetching featured papers instead');
+    loggers.app('[ArXiv API] Empty query detected, fetching featured papers instead');
     return getFeaturedPapers(maxResults);
   }
 
   try {
-    console.log('[ArXiv API] Requesting papers via Rust backend...');
-    console.log('[ArXiv API] Query:', query);
+    loggers.app('[ArXiv API] Requesting papers via Rust backend...');
+    loggers.app('[ArXiv API] Query:', query);
 
     const rustOptions: ArxivSearchOptions = {
       maxResults,
@@ -123,12 +123,12 @@ export async function searchArxivPapers(
 
     const papers = rustPapers.map(mapRustPaper);
 
-    console.log(`[ArXiv API] Successfully received ${papers.length} papers from Rust backend`);
+    loggers.app(`[ArXiv API] Successfully received ${papers.length} papers from Rust backend`);
     return papers;
-  } catch (error: any) {
-    console.error('[ArXiv API] Search failed with error:', error);
+  } catch (error: unknown) {
+    loggers.app('[ArXiv API] Search failed with error:', error);
     const errorMessage = error.message || String(error);
-    console.error('[ArXiv API] Detailed error for user:', {
+    loggers.app('[ArXiv API] Detailed error for user:', {
       originalError: error,
       message: errorMessage,
       stack: error.stack,
@@ -142,7 +142,7 @@ export async function searchArxivPapers(
  */
 export async function getFeaturedPapers(maxResults = 12): Promise<ArxivPaper[]> {
   try {
-    console.log('[ArXiv API] Fetching featured papers via Rust backend...');
+    loggers.app('[ArXiv API] Fetching featured papers via Rust backend...');
 
     const rustPapers: RustArxivPaper[] = await invoke('get_papers_by_categories', {
       categories: ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV'],
@@ -150,12 +150,12 @@ export async function getFeaturedPapers(maxResults = 12): Promise<ArxivPaper[]> 
     });
 
     const papers = rustPapers.map(mapRustPaper);
-    console.log(`[ArXiv API] Successfully received ${papers.length} featured papers`);
+    loggers.app(`[ArXiv API] Successfully received ${papers.length} featured papers`);
     return papers;
-  } catch (error: any) {
-    console.error('[ArXiv API] Failed to get featured papers:', error);
+  } catch (error: unknown) {
+    loggers.app('[ArXiv API] Failed to get featured papers:', error);
     const errorMessage = error.message || String(error);
-    console.error('[ArXiv API] Detailed error for user:', {
+    loggers.app('[ArXiv API] Detailed error for user:', {
       originalError: error,
       message: errorMessage,
       stack: error.stack,
@@ -172,7 +172,7 @@ export async function searchByCategory(
   maxResults = DEFAULT_MAX_RESULTS,
 ): Promise<ArxivPaper[]> {
   try {
-    console.log('[ArXiv API] Searching by category via Rust backend:', category);
+    loggers.app('[ArXiv API] Searching by category via Rust backend:', category);
 
     const rustPapers: RustArxivPaper[] = await invoke('get_papers_by_categories', {
       categories: [category],
@@ -180,10 +180,12 @@ export async function searchByCategory(
     });
 
     const papers = rustPapers.map(mapRustPaper);
-    console.log(`[ArXiv API] Successfully received ${papers.length} papers for category ${category}`);
+    loggers.app(
+      `[ArXiv API] Successfully received ${papers.length} papers for category ${category}`,
+    );
     return papers;
-  } catch (error: any) {
-    console.error('[ArXiv API] Failed to search by category:', error);
+  } catch (error: unknown) {
+    loggers.app('[ArXiv API] Failed to search by category:', error);
     throw new Error(`Failed to search by category: ${error.message || String(error)}`);
   }
 }
@@ -193,22 +195,22 @@ export async function searchByCategory(
  */
 export async function getPaperById(arxivId: string): Promise<ArxivPaper | null> {
   try {
-    console.log('[ArXiv API] Getting paper by ID via Rust backend:', arxivId);
+    loggers.app('[ArXiv API] Getting paper by ID via Rust backend:', arxivId);
 
     const rustPaper: RustArxivPaper | null = await invoke('get_paper_by_id', {
       arxivId,
     });
 
     if (!rustPaper) {
-      console.log('[ArXiv API] No paper found for ID:', arxivId);
+      loggers.app('[ArXiv API] No paper found for ID:', arxivId);
       return null;
     }
 
     const paper = mapRustPaper(rustPaper);
-    console.log('[ArXiv API] Successfully received paper:', paper.title);
+    loggers.app('[ArXiv API] Successfully received paper:', paper.title);
     return paper;
-  } catch (error: any) {
-    console.error('[ArXiv API] Failed to get paper by ID:', error);
+  } catch (error: unknown) {
+    loggers.app('[ArXiv API] Failed to get paper by ID:', error);
     return null;
   }
 }
@@ -229,19 +231,19 @@ class ArxivCacheManager {
         await mkdir(CACHE_DIR, { baseDir: BaseDirectory.AppData, recursive: true });
       }
       this.initialized = true;
-      console.log('[ArXiv Cache] Initialized persistent cache');
+      loggers.app('[ArXiv Cache] Initialized persistent cache');
     } catch (error) {
-      console.error('[ArXiv Cache] Failed to initialize:', error);
+      loggers.app('[ArXiv Cache] Failed to initialize:', error);
     }
   }
 
-  getCacheKey(query: string, options: any = {}): string {
+  getCacheKey(query: string, options: unknown = {}): string {
     // Create a safe filename from the query and options
     const keyStr = `${query}_${JSON.stringify(options)}`;
     return keyStr.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 100);
   }
 
-  async get(query: string, options: any = {}): Promise<ArxivPaper[] | null> {
+  async get(query: string, options: unknown = {}): Promise<ArxivPaper[] | null> {
     const key = this.getCacheKey(query, options);
 
     // Check memory cache first
@@ -250,11 +252,11 @@ class ArxivCacheManager {
       if (Date.now() - memCached.timestamp <= CACHE_DURATION) {
         // Skip empty cache - don't return empty results
         if (memCached.data.length === 0) {
-          console.log('[ArXiv Cache] Memory hit but empty, skipping:', key);
+          loggers.app('[ArXiv Cache] Memory hit but empty, skipping:', key);
           this.memoryCache.delete(key);
           return null;
         }
-        console.log('[ArXiv Cache] Memory hit:', key);
+        loggers.app('[ArXiv Cache] Memory hit:', key);
         return memCached.data;
       } else {
         this.memoryCache.delete(key);
@@ -274,28 +276,28 @@ class ArxivCacheManager {
         if (Date.now() - cached.timestamp <= CACHE_DURATION) {
           // Skip empty cache - don't return empty results
           if (cached.data.length === 0) {
-            console.log('[ArXiv Cache] Persistent hit but empty, skipping:', key);
+            loggers.app('[ArXiv Cache] Persistent hit but empty, skipping:', key);
             return null;
           }
-          console.log('[ArXiv Cache] Persistent hit:', key);
+          loggers.app('[ArXiv Cache] Persistent hit:', key);
           // Store in memory cache for faster access
           this.memoryCache.set(key, cached);
           return cached.data;
         } else {
-          console.log('[ArXiv Cache] Expired, removing:', key);
+          loggers.app('[ArXiv Cache] Expired, removing:', key);
         }
       }
     } catch (error) {
-      console.error('[ArXiv Cache] Failed to read cache:', error);
+      loggers.app('[ArXiv Cache] Failed to read cache:', error);
     }
 
     return null;
   }
 
-  async set(query: string, data: ArxivPaper[], options: any = {}): Promise<void> {
+  async set(query: string, data: ArxivPaper[], options: unknown = {}): Promise<void> {
     // Don't cache empty results - they might be errors
     if (data.length === 0) {
-      console.log('[ArXiv Cache] Skipping cache for empty result');
+      loggers.app('[ArXiv Cache] Skipping cache for empty result');
       return;
     }
 
@@ -311,15 +313,16 @@ class ArxivCacheManager {
       const filePath = `${CACHE_DIR}/${key}.json`;
       const content = JSON.stringify(cached);
       await writeTextFile(filePath, content, { baseDir: BaseDirectory.AppData });
-      console.log('[ArXiv Cache] Persisted:', key);
+      loggers.app('[ArXiv Cache] Persisted:', key);
     } catch (error) {
-      console.error('[ArXiv Cache] Failed to persist cache:', error);
+      loggers.app('[ArXiv Cache] Failed to persist cache:', error);
     }
 
     // Clean old entries from memory if it gets too large
     if (this.memoryCache.size > 20) {
-      const sortedEntries = Array.from(this.memoryCache.entries())
-        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const sortedEntries = Array.from(this.memoryCache.entries()).sort(
+        (a, b) => a[1].timestamp - b[1].timestamp,
+      );
 
       // Remove oldest 5 entries
       for (let i = 0; i < 5; i++) {
@@ -330,7 +333,7 @@ class ArxivCacheManager {
 
   clear(): void {
     this.memoryCache.clear();
-    console.log('[ArXiv Cache] Memory cache cleared');
+    loggers.app('[ArXiv Cache] Memory cache cleared');
   }
 
   async clearAll(): Promise<void> {
@@ -342,9 +345,9 @@ class ArxivCacheManager {
       await this.initialize();
       // Note: There's no built-in way to delete a directory in Tauri fs plugin
       // So we'll just let the cache naturally expire or get overwritten
-      console.log('[ArXiv Cache] All caches will be ignored and overwritten on next fetch');
+      loggers.app('[ArXiv Cache] All caches will be ignored and overwritten on next fetch');
     } catch (error) {
-      console.error('[ArXiv Cache] Failed to clear persistent cache:', error);
+      loggers.app('[ArXiv Cache] Failed to clear persistent cache:', error);
     }
   }
 }
@@ -360,7 +363,7 @@ export async function searchArxivPapersCached(
 ): Promise<ArxivPaper[]> {
   // Handle empty query - use featured papers with caching
   if (!query || query.trim() === '') {
-    console.log('[ArXiv API] Empty query in cached search, fetching featured papers');
+    loggers.app('[ArXiv API] Empty query in cached search, fetching featured papers');
     return getFeaturedPapersCached(options.maxResults || DEFAULT_MAX_RESULTS);
   }
 
@@ -403,7 +406,7 @@ export async function getPapersByCategories(
   maxResults = 20,
 ): Promise<ArxivPaper[]> {
   try {
-    console.log('[ArXiv API] Getting papers by categories via Rust backend:', categories);
+    loggers.app('[ArXiv API] Getting papers by categories via Rust backend:', categories);
 
     const rustPapers: RustArxivPaper[] = await invoke('get_papers_by_categories', {
       categories,
@@ -411,12 +414,15 @@ export async function getPapersByCategories(
     });
 
     const papers = rustPapers.map(mapRustPaper);
-    console.log(`[ArXiv API] Successfully received ${papers.length} papers for categories:`, categories);
+    loggers.app(
+      `[ArXiv API] Successfully received ${papers.length} papers for categories:`,
+      categories,
+    );
     return papers;
-  } catch (error: any) {
-    console.error('[ArXiv API] Failed to get papers by categories:', error);
+  } catch (error: unknown) {
+    loggers.app('[ArXiv API] Failed to get papers by categories:', error);
     const errorMessage = error.message || String(error);
-    console.error('[ArXiv API] Detailed error for user:', {
+    loggers.app('[ArXiv API] Detailed error for user:', {
       originalError: error,
       message: errorMessage,
       stack: error.stack,
@@ -439,14 +445,13 @@ export async function getPapersByCategoriesCached(
 
   const cached = await arxivCache.get(cacheKey);
   if (cached) {
-    console.log(`[ArXiv] Using cached data for categories: ${sortedCategories.join(', ')}`);
+    loggers.app(`[ArXiv] Using cached data for categories: ${sortedCategories.join(', ')}`);
     return cached;
   }
 
-  console.log(`[ArXiv] Fetching fresh data for categories: ${sortedCategories.join(', ')}`);
+  loggers.app(`[ArXiv] Fetching fresh data for categories: ${sortedCategories.join(', ')}`);
   const papers = await getPapersByCategories(sortedCategories, maxResults);
   await arxivCache.set(cacheKey, papers);
 
   return papers;
 }
-

@@ -1,4 +1,4 @@
-/**
+import { loggers } from './logger'; /**
  * RAG Cache Manager
  * Handles caching of embeddings and RAG metadata for performance optimization
  */
@@ -50,7 +50,7 @@ export class RAGCacheManager {
       const home = await homeDir();
       this.cachePath = `${home}/.cache/redink`;
 
-      console.log('[RAGCache] Initializing at:', this.cachePath);
+      loggers.app('[RAGCache] Initializing at:', this.cachePath);
 
       // Ensure cache directories exist
       const dirs = [
@@ -63,13 +63,13 @@ export class RAGCacheManager {
       for (const dir of dirs) {
         try {
           if (!(await exists(dir))) {
-            console.log('[RAGCache] Creating directory:', dir);
+            loggers.app('[RAGCache] Creating directory:', dir);
             await mkdir(dir, { recursive: true });
           } else {
-            console.log('[RAGCache] Directory exists:', dir);
+            loggers.app('[RAGCache] Directory exists:', dir);
           }
         } catch (mkdirError) {
-          console.error(`[RAGCache] Failed to create ${dir}:`, mkdirError);
+          loggers.app(`[RAGCache] Failed to create ${dir}:`, mkdirError);
           // Continue anyway - some directories might be created by other components
         }
       }
@@ -78,9 +78,9 @@ export class RAGCacheManager {
       await this.loadDocumentMetadata();
 
       this.initialized = true;
-      console.log('[RAGCache] Initialized successfully at:', this.cachePath);
+      loggers.app('[RAGCache] Initialized successfully at:', this.cachePath);
     } catch (error) {
-      console.error('[RAGCache] Failed to initialize:', error);
+      loggers.app('[RAGCache] Failed to initialize:', error);
       // Don't throw - allow system to work without cache if needed
       this.initialized = true; // Mark as initialized to prevent retries
     }
@@ -93,7 +93,7 @@ export class RAGCacheManager {
     let hash = 0;
     for (let i = 0; i < text.length; i++) {
       const char = text.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32bit integer
     }
     return Math.abs(hash).toString(36);
@@ -110,15 +110,15 @@ export class RAGCacheManager {
       if (await exists(metadataPath)) {
         const content = await readTextFile(metadataPath);
         const data = JSON.parse(content) as DocumentCacheMetadata[];
-        
+
         for (const meta of data) {
           this.documentMetadata.set(meta.documentId, meta);
         }
 
-        console.log(`[RAGCache] Loaded metadata for ${data.length} documents`);
+        loggers.app(`[RAGCache] Loaded metadata for ${data.length} documents`);
       }
     } catch (error) {
-      console.error('[RAGCache] Failed to load metadata:', error);
+      loggers.app('[RAGCache] Failed to load metadata:', error);
     }
   }
 
@@ -133,20 +133,16 @@ export class RAGCacheManager {
       const data = Array.from(this.documentMetadata.values());
       const content = JSON.stringify(data, null, 2);
       await writeTextFile(metadataPath, content);
-      console.log(`[RAGCache] Saved metadata for ${data.length} documents`);
+      loggers.app(`[RAGCache] Saved metadata for ${data.length} documents`);
     } catch (error) {
-      console.error('[RAGCache] Failed to save metadata:', error);
+      loggers.app('[RAGCache] Failed to save metadata:', error);
     }
   }
 
   /**
    * Cache embedding for text
    */
-  async cacheEmbedding(
-    text: string,
-    embedding: number[],
-    modelName: string,
-  ): Promise<void> {
+  async cacheEmbedding(text: string, embedding: number[], modelName: string): Promise<void> {
     const key = this.simpleHash(text + modelName);
     this.embeddingCache.set(key, {
       text,
@@ -162,11 +158,11 @@ export class RAGCacheManager {
   getCachedEmbedding(text: string, modelName: string): number[] | null {
     const key = this.simpleHash(text + modelName);
     const cached = this.embeddingCache.get(key);
-    
+
     if (cached && cached.modelName === modelName) {
       return cached.embedding;
     }
-    
+
     return null;
   }
 
@@ -228,7 +224,7 @@ export class RAGCacheManager {
 
     if (toDelete.length > 0) {
       await this.saveDocumentMetadata();
-      console.log(`[RAGCache] Cleared ${toDelete.length} old cache entries`);
+      loggers.app(`[RAGCache] Cleared ${toDelete.length} old cache entries`);
     }
   }
 
@@ -254,7 +250,7 @@ export class RAGCacheManager {
     this.embeddingCache.clear();
     this.documentMetadata.clear();
     await this.saveDocumentMetadata();
-    console.log('[RAGCache] Cleared all cache');
+    loggers.app('[RAGCache] Cleared all cache');
   }
 
   /**
@@ -267,4 +263,3 @@ export class RAGCacheManager {
 
 // Export singleton instance
 export const ragCache = RAGCacheManager.getInstance();
-
