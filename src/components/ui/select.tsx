@@ -17,7 +17,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      'flex h-10 w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors outline-0 ring-0 hover:cursor-pointer',
+      'flex h-10 w-full items-center justify-between rounded-md border px-3 py-2 text-sm ring-0 outline-0 transition-colors hover:cursor-pointer',
       'border-gray-300 group-hover:border-gray-400',
       'disabled:cursor-not-allowed disabled:opacity-50',
       // Only apply default background/border if no custom classes are provided
@@ -29,7 +29,7 @@ const SelectTrigger = React.forwardRef<
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0 ml-2" />
+      <ChevronDown className="ml-2 h-4 w-4 flex-shrink-0 opacity-50" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -43,7 +43,7 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-gray-200 bg-white text-zinc-950 shadow-lg animate-fadeIn',
+        'animate-fadeIn relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-gray-200 bg-white text-zinc-950 shadow-lg',
         className,
       )}
       position={position}
@@ -69,7 +69,7 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn('py-1.5 pl-8 pr-2 text-sm font-semibold', className)}
+    className={cn('py-1.5 pr-2 pl-8 text-sm font-semibold', className)}
     {...props}
   />
 ));
@@ -82,7 +82,7 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-zinc-100 focus:text-zinc-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      'relative flex w-full cursor-default items-center rounded-sm py-1.5 pr-2 pl-8 text-sm outline-none select-none focus:bg-zinc-100 focus:text-zinc-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
     )}
     {...props}
@@ -119,4 +119,4 @@ export {
   SelectLabel,
   SelectItem,
   SelectSeparator,
-}; 
+};

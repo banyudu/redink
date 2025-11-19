@@ -80,7 +80,7 @@ export default [
       'object-shorthand': 'error',
       'prefer-template': 'error',
       'quotes': ['error', 'single', { avoidEscape: true }],
-      'jsx-quotes': ['error', 'prefer-double'],
+      'jsx-quotes': ['error', 'prefer-single'],
       'semi': ['error', 'always'],
       'comma-dangle': ['error', 'always-multiline'],
 
