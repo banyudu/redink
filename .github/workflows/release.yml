@@ -193,7 +193,7 @@ jobs:
             arch: 'aarch64'
             target: 'aarch64-apple-darwin'
             
-          - platform: 'macos-13' # macOS 13 (Ventura) on Intel
+          - platform: 'macos-15' # macOS 15 (Sequoia) on Intel
             args: '--target x86_64-apple-darwin'
             arch: 'x86_64'
             target: 'x86_64-apple-darwin'
