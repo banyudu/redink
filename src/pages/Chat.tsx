@@ -400,13 +400,13 @@ const Chat: React.FC = () => {
 
   if (autoLoading) {
     return (
-      <div className="animate-fade-in flex h-[calc(100vh-48px)] flex-col items-center justify-center">
-        <div className="glass rounded-lg border border-white/20 p-8 text-center backdrop-blur-xl">
-          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-blue-500" />
-          <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+      <div className='animate-fade-in flex h-[calc(100vh-48px)] flex-col items-center justify-center'>
+        <div className='glass rounded-lg border border-white/20 p-8 text-center backdrop-blur-xl'>
+          <Loader2 className='mx-auto mb-4 h-12 w-12 animate-spin text-blue-500' />
+          <h3 className='mb-2 text-lg font-semibold text-gray-900 dark:text-white'>
             Loading Document
           </h3>
-          <p className="text-gray-600 dark:text-gray-300">Processing your PDF for AI chat...</p>
+          <p className='text-gray-600 dark:text-gray-300'>Processing your PDF for AI chat...</p>
         </div>
       </div>
     );
@@ -414,15 +414,15 @@ const Chat: React.FC = () => {
 
   if (!currentPaper) {
     return (
-      <div className="animate-fade-in flex h-[calc(100vh-48px)] flex-col items-center justify-center">
-        <div className="glass max-w-md rounded-lg border border-white/20 p-8 text-center backdrop-blur-xl">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
-            <FileText className="h-8 w-8 text-white" />
+      <div className='animate-fade-in flex h-[calc(100vh-48px)] flex-col items-center justify-center'>
+        <div className='glass max-w-md rounded-lg border border-white/20 p-8 text-center backdrop-blur-xl'>
+          <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600'>
+            <FileText className='h-8 w-8 text-white' />
           </div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className='mb-2 text-lg font-semibold text-gray-900 dark:text-white'>
             No Document Selected
           </h3>
-          <p className="mb-4 text-gray-600 dark:text-gray-300">
+          <p className='mb-4 text-gray-600 dark:text-gray-300'>
             Please select a PDF document to start chatting.
           </p>
           <TooltipProvider>
@@ -430,9 +430,9 @@ const Chat: React.FC = () => {
               <TooltipTrigger asChild>
                 <Button
                   onClick={() => navigate('/')}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                  className='bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700'
                 >
-                  <Home className="mr-2 h-4 w-4" />
+                  <Home className='mr-2 h-4 w-4' />
                   Select Document
                 </Button>
               </TooltipTrigger>
@@ -447,23 +447,23 @@ const Chat: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto h-[calc(100vh-48px)] max-w-full py-4" style={{ minHeight: '600px' }}>
+    <div className='mx-auto h-[calc(100vh-48px)] max-w-full py-4' style={{ minHeight: '600px' }}>
       {/* Header - Fixed height to prevent layout shift */}
       <div
-        className="mb-4 flex flex-shrink-0 items-center justify-between"
+        className='mb-4 flex flex-shrink-0 items-center justify-between'
         style={{ minHeight: '60px' }}
       >
-        <div className="flex items-center gap-4">
+        <div className='flex items-center gap-4'>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  variant='ghost'
+                  size='sm'
                   onClick={() => navigate('/')}
-                  className="p-0 transition-all duration-300 hover:bg-white/20"
+                  className='p-0 transition-all duration-300 hover:bg-white/20'
                 >
-                  <img src="/logo.png" alt="Home" className="size-16" />
+                  <img src='/logo.png' alt='Home' className='size-16' />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -472,20 +472,20 @@ const Chat: React.FC = () => {
             </Tooltip>
           </TooltipProvider>
 
-          <div className="flex items-center gap-3">
+          <div className='flex items-center gap-3'>
             <div style={{ minWidth: '200px' }}>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">{documentTitle}</h1>
+              <h1 className='text-xl font-bold text-gray-900 dark:text-white'>{documentTitle}</h1>
               <div style={{ minHeight: '20px' }}>
                 {meta && (
-                  <p className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                  <p className='flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300'>
                     <span>
                       {meta.pages} pages • {(meta.chars / 1000).toFixed(1)}k chars •{' '}
                       {index?.chunks.length ?? 0} chunks
                     </span>
                     {meta.hasSemanticIndex && (
-                      <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                        <Sparkles className="h-3 w-3" />
-                        <span className="text-xs">Hybrid RAG</span>
+                      <span className='flex items-center gap-1 text-blue-600 dark:text-blue-400'>
+                        <Sparkles className='h-3 w-3' />
+                        <span className='text-xs'>Hybrid RAG</span>
                       </span>
                     )}
                   </p>
@@ -496,15 +496,15 @@ const Chat: React.FC = () => {
         </div>
 
         {/* Model Configuration - Fixed dimensions to prevent layout shift */}
-        <div className="flex items-center gap-2" style={{ minWidth: '280px' }}>
-          <Settings className="h-4 w-4 text-gray-400" />
+        <div className='flex items-center gap-2' style={{ minWidth: '280px' }}>
+          <Settings className='h-4 w-4 text-gray-400' />
           <Select value={selectedModel} onValueChange={setSelectedModel} disabled={loadingModels}>
-            <SelectTrigger className="glass h-10 w-64 border-white/20 bg-white/10 text-sm text-gray-900 backdrop-blur-xl hover:border-white/30 dark:text-white">
+            <SelectTrigger className='glass h-10 w-64 border-white/20 bg-white/10 text-sm text-gray-900 backdrop-blur-xl hover:border-white/30 dark:text-white'>
               <SelectValue placeholder={loadingModels ? 'Loading models...' : 'Select a model'} />
             </SelectTrigger>
-            <SelectContent className="glass border-white/20 bg-white/95 backdrop-blur-xl dark:bg-gray-800/95 dark:text-white">
+            <SelectContent className='glass border-white/20 bg-white/95 backdrop-blur-xl dark:bg-gray-800/95 dark:text-white'>
               {availableModels.length === 0 && !loadingModels ? (
-                <SelectItem value="no-models" disabled className="dark:text-gray-400">
+                <SelectItem value='no-models' disabled className='dark:text-gray-400'>
                   No models available
                 </SelectItem>
               ) : (
@@ -512,7 +512,7 @@ const Chat: React.FC = () => {
                   <SelectItem
                     key={model}
                     value={model}
-                    className="cursor-pointer dark:text-white dark:focus:bg-gray-700"
+                    className='cursor-pointer dark:text-white dark:focus:bg-gray-700'
                   >
                     {model}
                   </SelectItem>
@@ -524,31 +524,31 @@ const Chat: React.FC = () => {
       </div>
 
       {/* Two Column Layout with Resizable Split - Fixed dimensions to prevent layout shift */}
-      <div className="relative flex h-[calc(100%-72px)] gap-0" style={{ minHeight: '500px' }}>
+      <div className='relative flex h-[calc(100%-72px)] gap-0' style={{ minHeight: '500px' }}>
         {/* Left Column - PDF Viewer - Fixed dimensions during transitions */}
         <div
-          className="h-full overflow-hidden"
+          className='h-full overflow-hidden'
           style={{
             width: `${leftWidth}%`,
             minWidth: '200px',
             transition: isDragging ? 'none' : 'width 0.2s ease-out',
           }}
         >
-          <PDFViewer filePath={currentPaper} className="h-full" />
+          <PDFViewer filePath={currentPaper} className='h-full' />
         </div>
 
         {/* Resize Handle - Fixed dimensions */}
         <div
-          role="separator"
-          aria-label="Resize panels"
+          role='separator'
+          aria-label='Resize panels'
           tabIndex={0}
-          className="my-2 w-1.5 flex-shrink-0 cursor-col-resize rounded-sm bg-transparent hover:bg-blue-500"
+          className='my-2 w-1.5 flex-shrink-0 cursor-col-resize rounded-sm bg-transparent hover:bg-blue-500'
           onMouseDown={handleMouseDown}
         />
 
         {/* Right Column - Chat Interface - Fixed dimensions during transitions */}
         <div
-          className="flex h-full min-h-0 flex-col"
+          className='flex h-full min-h-0 flex-col'
           style={{
             width: `${100 - leftWidth}%`,
             minWidth: '200px',
@@ -557,33 +557,33 @@ const Chat: React.FC = () => {
         >
           {/* Chat Messages Area - Fixed dimensions to prevent layout shift */}
           <div
-            className="glass mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/20 backdrop-blur-xl"
+            className='glass mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/20 backdrop-blur-xl'
             style={{ minHeight: '300px' }}
           >
             <div
-              className="flex-shrink-0 rounded-t-2xl border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 p-4 dark:from-blue-900/20 dark:to-purple-900/20"
+              className='flex-shrink-0 rounded-t-2xl border-b border-white/20 bg-gradient-to-r from-blue-50/50 to-purple-50/50 p-4 dark:from-blue-900/20 dark:to-purple-900/20'
               style={{ minHeight: '80px' }}
             >
-              <h3 className="font-semibold text-gray-900 dark:text-white">AI Conversation</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <h3 className='font-semibold text-gray-900 dark:text-white'>AI Conversation</h3>
+              <p className='text-sm text-gray-600 dark:text-gray-300'>
                 Ask questions about your research paper
               </p>
             </div>
 
             <div
-              className="min-h-0 flex-1 space-y-4 overflow-auto p-6"
+              className='min-h-0 flex-1 space-y-4 overflow-auto p-6'
               style={{ minHeight: '200px' }}
             >
               {messages.length === 0 && index && (
-                <div className="flex h-full flex-col items-center justify-center space-y-4 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600">
-                    <MessageSquare className="h-8 w-8 text-white" />
+                <div className='flex h-full flex-col items-center justify-center space-y-4 text-center'>
+                  <div className='flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600'>
+                    <MessageSquare className='h-8 w-8 text-white' />
                   </div>
                   <div>
-                    <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+                    <h3 className='mb-2 text-lg font-semibold text-gray-900 dark:text-white'>
                       Ready to chat!
                     </h3>
-                    <p className="max-w-md text-gray-600 dark:text-gray-300">
+                    <p className='max-w-md text-gray-600 dark:text-gray-300'>
                       Your document has been processed. Ask me anything about the content,
                       methodology, findings, or any specific details you'd like to explore.
                     </p>
@@ -592,13 +592,13 @@ const Chat: React.FC = () => {
               )}
 
               {messages.length === 0 && !index && loading && (
-                <div className="flex h-full flex-col items-center justify-center space-y-4 text-center">
-                  <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+                <div className='flex h-full flex-col items-center justify-center space-y-4 text-center'>
+                  <Loader2 className='h-12 w-12 animate-spin text-blue-500' />
                   <div>
-                    <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+                    <h3 className='mb-2 text-lg font-semibold text-gray-900 dark:text-white'>
                       Processing Document
                     </h3>
-                    <p className="max-w-md text-gray-600 dark:text-gray-300">
+                    <p className='max-w-md text-gray-600 dark:text-gray-300'>
                       Analyzing your PDF and preparing it for AI conversation...
                     </p>
                   </div>
@@ -619,9 +619,9 @@ const Chat: React.FC = () => {
                     }`}
                   >
                     {m.role === 'user' ? (
-                      <User className="h-4 w-4 text-white" />
+                      <User className='h-4 w-4 text-white' />
                     ) : (
-                      <Bot className="h-4 w-4 text-white" />
+                      <Bot className='h-4 w-4 text-white' />
                     )}
                   </div>
 
@@ -637,7 +637,7 @@ const Chat: React.FC = () => {
                       }`}
                     >
                       {m.role === 'assistant' ? (
-                        <div className="markdown-content">
+                        <div className='markdown-content'>
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             rehypePlugins={[rehypeHighlight]}
@@ -646,10 +646,10 @@ const Chat: React.FC = () => {
                           </ReactMarkdown>
                         </div>
                       ) : (
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                        <p className='text-sm leading-relaxed whitespace-pre-wrap'>{m.content}</p>
                       )}
                     </div>
-                    <span className="px-2 text-xs text-gray-500">
+                    <span className='px-2 text-xs text-gray-500'>
                       {new Date(m.timestamp).toLocaleTimeString()}
                     </span>
                   </div>
@@ -657,14 +657,14 @@ const Chat: React.FC = () => {
               ))}
 
               {sending && (
-                <div className="flex items-start gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600">
-                    <Bot className="h-4 w-4 text-white" />
+                <div className='flex items-start gap-3'>
+                  <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600'>
+                    <Bot className='h-4 w-4 text-white' />
                   </div>
-                  <div className="glass rounded-lg rounded-tl-lg border border-white/20 px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                      <span className="text-sm text-gray-600 dark:text-gray-300">Thinking...</span>
+                  <div className='glass rounded-lg rounded-tl-lg border border-white/20 px-4 py-3'>
+                    <div className='flex items-center gap-2'>
+                      <Loader2 className='h-4 w-4 animate-spin text-blue-500' />
+                      <span className='text-sm text-gray-600 dark:text-gray-300'>Thinking...</span>
                     </div>
                   </div>
                 </div>
@@ -677,11 +677,11 @@ const Chat: React.FC = () => {
 
           {/* Message Input - Fixed dimensions to prevent layout shift */}
           <div
-            className="glass flex-shrink-0 rounded-lg border border-white/20 p-4 backdrop-blur-xl"
+            className='glass flex-shrink-0 rounded-lg border border-white/20 p-4 backdrop-blur-xl'
             style={{ minHeight: '80px' }}
           >
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
+            <div className='flex items-center gap-3'>
+              <div className='relative flex-1'>
                 <Input
                   placeholder={index ? 'Ask about the paper...' : 'Processing document...'}
                   value={question}
@@ -693,7 +693,7 @@ const Chat: React.FC = () => {
                     }
                   }}
                   disabled={!index || sending || loading}
-                  className="glass border-white/20 bg-white/10 backdrop-blur-xl"
+                  className='glass border-white/20 bg-white/10 backdrop-blur-xl'
                   style={{ minHeight: '40px' }}
                 />
               </div>
@@ -704,12 +704,12 @@ const Chat: React.FC = () => {
                     <Button
                       onClick={send}
                       disabled={!index || !question.trim() || sending || loading}
-                      className="border-0 bg-gradient-to-r from-blue-600 to-purple-600 px-6 text-white transition-all duration-300 hover:scale-105 hover:from-blue-700 hover:to-purple-700"
+                      className='border-0 bg-gradient-to-r from-blue-600 to-purple-600 px-6 text-white transition-all duration-300 hover:scale-105 hover:from-blue-700 hover:to-purple-700'
                     >
                       {sending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className='h-4 w-4 animate-spin' />
                       ) : (
-                        <Send className="h-4 w-4" />
+                        <Send className='h-4 w-4' />
                       )}
                     </Button>
                   </TooltipTrigger>

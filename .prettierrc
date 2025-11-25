@@ -10,6 +10,6 @@
   "arrowParens": "always",
   "endOfLine": "lf",
   "quoteProps": "as-needed",
-  "jsxSingleQuote": false,
+  "jsxSingleQuote": true,
   "plugins": ["prettier-plugin-tailwindcss"]
 }

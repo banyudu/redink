@@ -45,19 +45,19 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
 
   const getFileIcon = () => {
     // Always use ArXiv logo for all documents
-    return <img src="/arxiv.png" alt="ArXiv" className="h-5 w-5" />;
+    return <img src='/arxiv.png' alt='ArXiv' className='h-5 w-5' />;
   };
 
   if (recentFiles.length === 0) {
     return (
-      <div className="glass rounded-lg border border-white/20 p-8 text-center backdrop-blur-xl">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-gray-400 to-gray-500">
-          <File className="h-8 w-8 text-white" />
+      <div className='glass rounded-lg border border-white/20 p-8 text-center backdrop-blur-xl'>
+        <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-gray-400 to-gray-500'>
+          <File className='h-8 w-8 text-white' />
         </div>
-        <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 className='mb-2 text-lg font-semibold text-gray-900 dark:text-white'>
           No Recent Files
         </h3>
-        <p className="mx-auto max-w-md text-gray-600 dark:text-gray-300">
+        <p className='mx-auto max-w-md text-gray-600 dark:text-gray-300'>
           Load your first PDF to see it appear in your recent files list for quick access.
         </p>
       </div>
@@ -65,30 +65,30 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Clock className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Files</h3>
-          <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+    <div className='space-y-3'>
+      <div className='mb-4 flex items-center justify-between'>
+        <div className='flex items-center gap-2'>
+          <Clock className='h-5 w-5 text-gray-600 dark:text-gray-300' />
+          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>Recent Files</h3>
+          <span className='rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700'>
             {recentFiles.length}
           </span>
         </div>
 
         {recentFiles.length > 0 && (
           <Button
-            variant="ghost"
-            size="sm"
+            variant='ghost'
+            size='sm'
             onClick={() => recentFiles.forEach((f) => onRemoveFile(f.path))}
-            className="text-gray-500 transition-colors duration-200 hover:text-red-500"
+            className='text-gray-500 transition-colors duration-200 hover:text-red-500'
           >
-            <Trash2 className="mr-1 h-4 w-4" />
+            <Trash2 className='mr-1 h-4 w-4' />
             Clear All
           </Button>
         )}
       </div>
 
-      <div className="custom-scrollbar max-h-96 space-y-2 overflow-y-auto">
+      <div className='custom-scrollbar max-h-96 space-y-2 overflow-y-auto'>
         {recentFiles.map((file) => (
           <div
             key={file.id}
@@ -97,7 +97,7 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
             }`}
             onMouseEnter={() => setHoveredFile(file.id)}
             onMouseLeave={() => setHoveredFile(null)}
-            role="button"
+            role='button'
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -113,7 +113,7 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
                   : 'border-white/20 hover:border-white/40 hover:bg-white/10'
               }`}
               onClick={() => onFileSelect(file)}
-              role="button"
+              role='button'
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -129,56 +129,56 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
                 }`}
               />
 
-              <div className="relative z-10 flex items-center gap-3">
+              <div className='relative z-10 flex items-center gap-3'>
                 {/* File Icon */}
-                <div className="flex-shrink-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-md">
+                <div className='flex-shrink-0'>
+                  <div className='flex h-10 w-10 items-center justify-center rounded-md'>
                     {getFileIcon()}
                   </div>
                 </div>
 
                 {/* File Info */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1">
-                      <h4 className="line-clamp-1 text-sm font-semibold text-gray-900 transition-colors duration-300 group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400">
+                <div className='min-w-0 flex-1'>
+                  <div className='flex items-start justify-between'>
+                    <div className='min-w-0 flex-1'>
+                      <h4 className='line-clamp-1 text-sm font-semibold text-gray-900 transition-colors duration-300 group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400'>
                         {file.title || file.path.split('/').pop() || 'Untitled'}
                       </h4>
 
-                      <div className="mt-1 flex items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
+                      <div className='mt-1 flex items-center gap-3 text-xs text-gray-600 dark:text-gray-300'>
                         {file.pageCount && (
-                          <span className="flex items-center gap-1">
-                            <FileText className="h-3 w-3" />
+                          <span className='flex items-center gap-1'>
+                            <FileText className='h-3 w-3' />
                             {file.pageCount} pages
                           </span>
                         )}
 
                         {file.fileSize && <span>{formatFileSize(file.fileSize)}</span>}
 
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
+                        <span className='flex items-center gap-1'>
+                          <Clock className='h-3 w-3' />
                           {formatDate(file.lastAccessed)}
                         </span>
                       </div>
 
                       {/* File path truncated */}
-                      <p className="mt-1 line-clamp-1 text-xs text-gray-500 dark:text-gray-400">
+                      <p className='mt-1 line-clamp-1 text-xs text-gray-500 dark:text-gray-400'>
                         {file.path}
                       </p>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="ml-3 flex items-center gap-1">
+                    <div className='ml-3 flex items-center gap-1'>
                       <Button
-                        variant="ghost"
-                        size="sm"
+                        variant='ghost'
+                        size='sm'
                         onClick={(e) => {
                           e.stopPropagation();
                           onRemoveFile(file.path);
                         }}
-                        className="h-6 w-6 p-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:text-red-500"
+                        className='h-6 w-6 p-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:text-red-500'
                       >
-                        <X className="h-3 w-3" />
+                        <X className='h-3 w-3' />
                       </Button>
 
                       <div
@@ -186,7 +186,7 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
                           hoveredFile === file.id ? 'translate-x-1' : ''
                         }`}
                       >
-                        <MessageSquare className="h-4 w-4 text-blue-500" />
+                        <MessageSquare className='h-4 w-4 text-blue-500' />
                       </div>
                     </div>
                   </div>
@@ -195,9 +195,9 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({
 
               {/* Loading overlay */}
               {loading && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white/80 backdrop-blur-sm dark:bg-gray-900/80">
-                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                <div className='absolute inset-0 flex items-center justify-center rounded-lg bg-white/80 backdrop-blur-sm dark:bg-gray-900/80'>
+                  <div className='flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300'>
+                    <div className='h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent' />
                     Loading...
                   </div>
                 </div>

@@ -48,13 +48,13 @@ const ToastComponent: React.FC<ToastComponentProps> = ({ toast, onRemove }) => {
   const getIcon = () => {
     switch (toast.type) {
       case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
+        return <CheckCircle className='h-5 w-5 text-green-600' />;
       case 'error':
-        return <XCircle className="h-5 w-5 text-red-600" />;
+        return <XCircle className='h-5 w-5 text-red-600' />;
       case 'warning':
-        return <AlertCircle className="h-5 w-5 text-yellow-600" />;
+        return <AlertCircle className='h-5 w-5 text-yellow-600' />;
       case 'info':
-        return <Info className="h-5 w-5 text-blue-600" />;
+        return <Info className='h-5 w-5 text-blue-600' />;
     }
   };
 
@@ -80,27 +80,27 @@ const ToastComponent: React.FC<ToastComponentProps> = ({ toast, onRemove }) => {
       <div
         className={`glass max-w-sm rounded-lg border p-4 shadow-lg backdrop-blur-xl ${getColors()}`}
       >
-        <div className="flex items-start gap-3">
+        <div className='flex items-start gap-3'>
           {getIcon()}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{toast.title}</h4>
+          <div className='min-w-0 flex-1'>
+            <div className='flex items-center justify-between'>
+              <h4 className='text-sm font-semibold text-gray-900 dark:text-white'>{toast.title}</h4>
               <button
                 onClick={handleRemove}
-                className="text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+                className='text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300'
               >
-                <X className="h-4 w-4" />
+                <X className='h-4 w-4' />
               </button>
             </div>
-            <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{toast.message}</p>
+            <p className='mt-1 text-sm text-gray-700 dark:text-gray-300'>{toast.message}</p>
 
             {toast.actions && toast.actions.length > 0 && (
-              <div className="mt-3 flex gap-2">
+              <div className='mt-3 flex gap-2'>
                 {toast.actions.map((action, index) => (
                   <button
                     key={index}
                     onClick={action.onClick}
-                    className="rounded-md border border-white/20 bg-white/20 px-3 py-1 text-xs transition-colors hover:bg-white/30"
+                    className='rounded-md border border-white/20 bg-white/20 px-3 py-1 text-xs transition-colors hover:bg-white/30'
                   >
                     {action.label}
                   </button>
@@ -123,7 +123,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className='fixed top-4 right-4 z-50 space-y-2'>
       {toasts.map((toast) => (
         <ToastComponent key={toast.id} toast={toast} onRemove={onRemove} />
       ))}

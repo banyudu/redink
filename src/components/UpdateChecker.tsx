@@ -32,14 +32,14 @@ export function UpdateChecker() {
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <Button onClick={handleCheckUpdates} disabled={checking} variant="outline" size="sm">
+    <div className='flex items-center gap-2'>
+      <Button onClick={handleCheckUpdates} disabled={checking} variant='outline' size='sm'>
         <RefreshCw className={`mr-2 h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
         {checking ? 'Checking...' : 'Check for Updates'}
       </Button>
 
       {hasUpdate === false && !checking && (
-        <span className="text-muted-foreground text-sm">You're up to date!</span>
+        <span className='text-muted-foreground text-sm'>You're up to date!</span>
       )}
     </div>
   );
