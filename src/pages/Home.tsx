@@ -61,9 +61,14 @@ export const Home: React.FC = () => {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [visibleRecentFilesCount, setVisibleRecentFilesCount] = useState(5);
+  const [isSearching, setIsSearching] = useState(false); // Track if we're currently searching
 
   // Toast notifications
   const { toasts, addToast, removeToast } = useToast();
+  const addToastRef = useRef(addToast);
+  addToastRef.current = addToast;
+  const arxivPapersRef = useRef(arxivPapers);
+  arxivPapersRef.current = arxivPapers;
 
   // Load recent files, preferences, and initialize storage on mount
   React.useEffect(() => {
@@ -120,7 +125,12 @@ export const Home: React.FC = () => {
           if (cached && cached.length > 0) {
             // Show cached data immediately
             setArxivPapers(cached);
-            setFilteredPapers(cached);
+
+            // Only update filtered papers if we're not currently searching
+            if (!isSearching && !arxivQuery.trim()) {
+              setFilteredPapers(cached);
+            }
+
             hasCachedData = true;
             loggers.app(' Showing cached papers while fetching fresh data:', cached.length);
           } else {
@@ -133,12 +143,38 @@ export const Home: React.FC = () => {
         // Fetch fresh data (this will use cache if available and valid, unless forceRefresh is true)
         const papers = await getPapersByCategoriesCached(selectedCategories, 20);
         setArxivPapers(papers);
-        setFilteredPapers(papers);
+
+        // Only update filtered papers if we're not currently searching
+        if (!isSearching && !arxivQuery.trim()) {
+          setFilteredPapers(papers);
+          loggers.app(
+            ' 📑 SETTING CATEGORY RESULTS - papers count:',
+            papers.length,
+            'isSearching:',
+            isSearching,
+            'query:',
+            arxivQuery.trim(),
+          );
+        } else {
+          loggers.app(
+            ' ⚠️ SKIPPING category result update - isSearching:',
+            isSearching,
+            'query:',
+            arxivQuery.trim(),
+          );
+        }
+
         loggers.app(
           ' Updated with papers for categories:',
           selectedCategories,
           'count:',
           papers.length,
+          'isSearching:',
+          isSearching,
+          'arxivQuery:',
+          arxivQuery.trim(),
+          '✅ Should update filtered:',
+          !isSearching && !arxivQuery.trim(),
         );
       } catch (error: unknown) {
         loggers.app(' Failed to load papers:', error);
@@ -187,7 +223,7 @@ export const Home: React.FC = () => {
         }
       }
     },
-    [selectedCategories, addToast],
+    [selectedCategories, addToast, isSearching, arxivQuery],
   );
 
   // Handle refresh button click
@@ -208,18 +244,49 @@ export const Home: React.FC = () => {
     loadPapers();
   }, [loadPapers]);
 
-  // Search ArXiv papers with debouncing
+  // Combined effect to manage filtered papers (search vs category results)
+  React.useEffect(() => {
+    loggers.app(
+      ' 🎯 MASTER EFFECT: Managing filtered papers - isSearching:',
+      isSearching,
+      'query:',
+      arxivQuery.trim(),
+    );
+
+    if (arxivQuery.trim()) {
+      // User is typing/has typed a search query
+      if (!isSearching) {
+        // User just started typing, set searching state
+        loggers.app(' 🔍 MASTER EFFECT: Setting searching state');
+        setIsSearching(true);
+      }
+      // When actively searching, don't override with category papers
+      loggers.app(' ⏳ MASTER EFFECT: Search mode - waiting for search results');
+      return;
+    } else {
+      // Query is empty - show category papers
+      if (isSearching) {
+        loggers.app(' 🔄 MASTER EFFECT: Clearing search state');
+        setIsSearching(false);
+      }
+      loggers.app(' 📑 MASTER EFFECT: Setting category papers:', arxivPapers.length);
+      setFilteredPapers(arxivPapers);
+    }
+  }, [arxivQuery, arxivPapers, isSearching]);
+
+  // Search ArXiv papers with debouncing (only handles search requests)
   React.useEffect(() => {
     // Clear existing timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // If query is empty, show featured papers
+    // Only search if we have a query
     if (!arxivQuery.trim()) {
-      setFilteredPapers(arxivPapers);
       return;
     }
+
+    loggers.app(' ⏰ SEARCH EFFECT: Scheduling search for:', arxivQuery);
 
     // Debounce search - wait 500ms after user stops typing
     searchTimeoutRef.current = setTimeout(async () => {
@@ -227,24 +294,26 @@ export const Home: React.FC = () => {
       setPapersError(null);
 
       try {
+        loggers.app(' 🔍 SEARCH EFFECT: Executing search for:', arxivQuery);
         // Build search query for title, author, or abstract
         const searchQuery = `all:${arxivQuery}`;
         const papers = await searchArxivPapersCached(searchQuery, { maxResults: 20 });
+
+        loggers.app(` 🔍 SETTING SEARCH RESULTS for "${arxivQuery}":`, papers.length, 'papers');
+        if (papers.length > 0) {
+          loggers.app(
+            ' 📊 First few search result titles:',
+            papers.slice(0, 3).map((p) => p.title),
+          );
+        }
         setFilteredPapers(papers);
-        loggers.app(' Search results:', papers.length);
       } catch (error: unknown) {
-        loggers.app(' Search failed:', error);
+        loggers.app(' ❌ SEARCH EFFECT: Search failed:', error);
         const errorMessage = (error as Error).message || 'Unknown search error';
-        loggers.app(' Detailed search error info:', {
-          originalError: error,
-          message: errorMessage,
-          stack: (error as Error).stack,
-          searchQuery: `all:${arxivQuery}`,
-        });
         setPapersError(`Search failed: ${errorMessage}. Please try again with different keywords.`);
 
         // Show search error toast notification
-        addToast({
+        addToastRef.current({
           title: 'Search failed',
           message: `Error: ${errorMessage}. Please try different keywords or check your connection.`,
           type: 'error',
@@ -263,7 +332,7 @@ export const Home: React.FC = () => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [arxivQuery, arxivPapers, addToast]);
+  }, [arxivQuery]); // Only depend on the search query
 
   // Process PDF file and navigate to chat
   const processPdfFile = useCallback(
